@@ -1,0 +1,36 @@
+# CyberSentinel IR — Requirements
+# ─────────────────────────────────────────────────────────────
+# This project is delivered as a single self-contained HTML file
+# (cybersentinel.html) requiring NO server-side dependencies.
+#
+# To run:  open cybersentinel.html in any modern web browser.
+# No installation, build step, or package manager is required.
+# ─────────────────────────────────────────────────────────────
+
+# ── BROWSER REQUIREMENTS (already included in any modern browser) ──
+# HTML5
+# CSS3
+# ECMAScript 2020+ (Vanilla JavaScript)
+# Web Storage API (localStorage — for data persistence)
+# Blob / URL.createObjectURL API (for CSV export)
+
+# ── OPTIONAL: Local development server (any one of these works) ──
+# python >= 3.6              # python -m http.server 8080
+# node >= 14                 # npx serve .
+# VS Code Live Server        # Right-click cybersentinel.html → Open with Live Server
+
+# ── IF YOU EXTEND TO A PYTHON BACKEND (future upgrade) ──
+flask==3.0.3
+flask-cors==4.0.1
+python-dotenv==1.0.1
+# flask-sqlalchemy==3.1.1
+# werkzeug==3.0.3
+
+# ── IF YOU EXTEND TO A REACT FRONTEND (future upgrade) ──
+# react==18.x                  (npm)
+# react-dom==18.x              (npm)
+# typescript==5.x              (npm)
+# tailwindcss==3.x             (npm)
+# lucide-react                 (npm)
+# recharts                     (npm)
+# axios                        (npm)

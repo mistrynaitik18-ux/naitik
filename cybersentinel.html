@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CyberSentinel IR — Incident Response Simulator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#c9d1d9;min-height:100vh;display:flex;flex-direction:column}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:#161b22}::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+a{color:#58a6ff;text-decoration:none}
+/* LAYOUT */
+#app{display:flex;flex-direction:column;height:100vh}
+#topbar{background:#161b22;border-bottom:1px solid #30363d;padding:0 20px;height:56px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100}
+#topbar .logo{font-size:18px;font-weight:700;color:#58a6ff;white-space:nowrap;display:flex;align-items:center;gap:8px}
+#topbar .logo span{color:#e6edf3}
+#search-box{flex:1;max-width:340px;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:6px 12px;color:#c9d1d9;font-size:13px;outline:none}
+#search-box:focus{border-color:#58a6ff}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.notif-btn{background:none;border:none;color:#8b949e;cursor:pointer;font-size:18px;position:relative}
+.notif-badge{position:absolute;top:-4px;right:-4px;background:#f85149;color:#fff;font-size:9px;border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center}
+.avatar{width:32px;height:32px;border-radius:50%;background:#1f6feb;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;cursor:pointer}
+#main{display:flex;flex:1;overflow:hidden}
+#sidebar{width:220px;background:#161b22;border-right:1px solid #30363d;overflow-y:auto;flex-shrink:0;transition:width .2s}
+#sidebar.collapsed{width:52px}
+.sidebar-toggle{background:none;border:none;color:#8b949e;cursor:pointer;font-size:16px;padding:12px;width:100%;text-align:right}
+.nav-section{padding:8px 0;border-bottom:1px solid #21262d}
+.nav-label{font-size:10px;font-weight:600;color:#8b949e;padding:4px 16px;letter-spacing:.8px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;color:#8b949e;font-size:13px;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{color:#c9d1d9;background:#1c2128}
+.nav-item.active{color:#58a6ff;background:#1c2128;border-left-color:#58a6ff}
+.nav-item .icon{font-size:15px;min-width:18px;text-align:center}
+#sidebar.collapsed .nav-label,.nav-item.collapsed .label{display:none}
+#content{flex:1;overflow-y:auto;padding:24px}
+/* CARDS */
+.page{display:none}.page.active{display:block}
+.page-title{font-size:22px;font-weight:700;color:#e6edf3;margin-bottom:4px}
+.page-sub{font-size:13px;color:#8b949e;margin-bottom:24px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px}
+.card-title{font-size:13px;font-weight:600;color:#8b949e;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+.stat-val{font-size:28px;font-weight:700;color:#e6edf3}
+.stat-sub{font-size:12px;color:#8b949e;margin-top:4px}
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-crit{background:#3d0f0f;color:#f85149;border:1px solid #f85149}
+.badge-high{background:#3d1e0a;color:#f0883e;border:1px solid #f0883e}
+.badge-med{background:#3d3000;color:#e3b341;border:1px solid #e3b341}
+.badge-low{background:#0d2d0d;color:#56d364;border:1px solid #56d364}
+.badge-new{background:#1f2d3d;color:#58a6ff;border:1px solid #388bfd}
+.badge-ack{background:#2d1f3d;color:#d2a8ff;border:1px solid #a371f7}
+.badge-inv{background:#3d2d00;color:#e3b341;border:1px solid #9e6a03}
+.badge-cont{background:#3d1a00;color:#f0883e;border:1px solid #f0883e}
+.badge-rec{background:#0d2d0d;color:#56d364;border:1px solid #56d364}
+.badge-closed{background:#21262d;color:#8b949e;border:1px solid #30363d}
+/* TABLES */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:10px 12px;text-align:left;color:#8b949e;font-weight:600;border-bottom:1px solid #30363d;background:#0d1117}
+td{padding:10px 12px;border-bottom:1px solid #21262d;vertical-align:middle}
+tr:hover td{background:#1c2128}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:#1f6feb;color:#fff}.btn-primary:hover{background:#388bfd}
+.btn-danger{background:#b91c1c;color:#fff}.btn-danger:hover{background:#f85149}
+.btn-ghost{background:transparent;color:#8b949e;border:1px solid #30363d}.btn-ghost:hover{color:#c9d1d9;border-color:#58a6ff}
+.btn-success{background:#238636;color:#fff}.btn-success:hover{background:#2ea043}
+.btn-sm{padding:4px 10px;font-size:12px}
+/* FORMS */
+.form-group{margin-bottom:16px}
+label{display:block;font-size:12px;font-weight:600;color:#8b949e;margin-bottom:6px}
+input,select,textarea{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#c9d1d9;font-size:13px;outline:none;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:#58a6ff}
+textarea{resize:vertical;min-height:80px}
+select option{background:#161b22}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:24px;width:90%;max-width:560px;max-height:85vh;overflow-y:auto}
+.modal-title{font-size:17px;font-weight:700;color:#e6edf3;margin-bottom:16px}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+/* CHARTS (CSS-based) */
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:120px;padding-top:8px}
+.bar{flex:1;border-radius:4px 4px 0 0;min-width:24px;position:relative;transition:height .3s}
+.bar-label{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:10px;color:#8b949e;white-space:nowrap}
+.bar-val{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:#c9d1d9;white-space:nowrap}
+.chart-wrap{padding-bottom:28px}
+/* DONUT CHART */
+.donut-wrap{display:flex;align-items:center;gap:20px}
+.donut{position:relative;width:100px;height:100px}
+.donut svg{transform:rotate(-90deg)}
+.donut-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#e6edf3}
+.legend{display:flex;flex-direction:column;gap:6px;font-size:12px}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-dot{width:10px;height:10px;border-radius:2px}
+/* TIMELINE */
+.timeline{padding:8px 0}
+.tl-item{display:flex;gap:12px;padding:8px 0;border-left:2px solid #21262d;margin-left:8px;padding-left:16px;position:relative}
+.tl-item::before{content:'';position:absolute;left:-5px;top:14px;width:8px;height:8px;border-radius:50%;background:#30363d}
+.tl-crit::before{background:#f85149}.tl-high::before{background:#f0883e}.tl-info::before{background:#58a6ff}.tl-success::before{background:#56d364}
+.tl-time{font-size:11px;color:#8b949e;white-space:nowrap;min-width:120px}
+.tl-text{font-size:13px;color:#c9d1d9}
+/* SIMULATOR */
+.scenario-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px;cursor:pointer;transition:all .2s}
+.scenario-card:hover{border-color:#58a6ff;background:#1c2128}
+.scenario-title{font-size:16px;font-weight:700;color:#e6edf3;margin-bottom:6px}
+.scenario-desc{font-size:13px;color:#8b949e;margin-bottom:12px}
+.diff-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.diff-easy{background:#0d2d0d;color:#56d364}.diff-med{background:#3d3000;color:#e3b341}.diff-hard{background:#3d0f0f;color:#f85149}
+.choice-btn{display:block;width:100%;text-align:left;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px 16px;color:#c9d1d9;font-size:13px;cursor:pointer;margin-bottom:8px;transition:all .15s}
+.choice-btn:hover{border-color:#58a6ff;background:#161b22}
+.choice-btn.correct{border-color:#56d364;background:#0d2d0d;color:#56d364}
+.choice-btn.wrong{border-color:#f85149;background:#3d0f0f;color:#f85149}
+.choice-btn.neutral{border-color:#e3b341;background:#3d3000;color:#e3b341}
+.feedback-box{background:#1c2128;border:1px solid #30363d;border-radius:6px;padding:14px;margin-top:12px;font-size:13px}
+.score-bar{height:8px;background:#21262d;border-radius:4px;overflow:hidden;margin-top:6px}
+.score-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#1f6feb,#58a6ff);transition:width .5s}
+/* IOC */
+.ioc-row td:first-child{font-family:monospace;font-size:12px;color:#79c0ff}
+/* PLAYBOOK */
+.pb-step{background:#161b22;border:1px solid #30363d;border-radius:6px;margin-bottom:8px;overflow:hidden}
+.pb-step-header{padding:12px 16px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.pb-step-header:hover{background:#1c2128}
+.pb-step-body{padding:0 16px 14px;display:none}
+.pb-step-body.open{display:block}
+.checklist-item{display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:13px}
+.checklist-item input[type=checkbox]{margin-top:2px;cursor:pointer;accent-color:#58a6ff}
+.checklist-item.done{color:#8b949e;text-decoration:line-through}
+/* ALERTS */
+.alert{padding:12px 16px;border-radius:6px;font-size:13px;margin-bottom:16px}
+.alert-warn{background:#3d2d00;border:1px solid #9e6a03;color:#e3b341}
+.alert-info{background:#1f2d3d;border:1px solid #388bfd;color:#79c0ff}
+.alert-danger{background:#3d0f0f;border:1px solid #f85149;color:#ffa198}
+.alert-success{background:#0d2d0d;border:1px solid #2ea043;color:#56d364}
+/* PROGRESS */
+.progress-bar{height:6px;background:#21262d;border-radius:4px;overflow:hidden;margin:8px 0}
+.progress-fill{height:100%;border-radius:4px;background:#1f6feb;transition:width .3s}
+/* TABS */
+.tabs{display:flex;gap:0;border-bottom:1px solid #30363d;margin-bottom:20px}
+.tab{padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#8b949e;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+/* SEARCH BAR */
+.filter-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.filter-row input,.filter-row select{flex:1;min-width:140px;max-width:220px}
+/* RESPONSIVE */
+@media(max-width:768px){
+  #sidebar{position:fixed;height:100%;z-index:150;transform:translateX(-100%)}
+  #sidebar.mobile-open{transform:translateX(0)}
+  .g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(2,1fr)}.g2{grid-template-columns:1fr}
+  #content{padding:16px}
+}
+.flex{display:flex}.flex-between{justify-content:space-between}.items-center{align-items:center}.gap-8{gap:8px}.gap-12{gap:12px}.mb-16{margin-bottom:16px}.mt-8{margin-top:8px}.mt-16{margin-top:16px}
+.text-muted{color:#8b949e}.text-sm{font-size:12px}.fw-bold{font-weight:700}.text-danger{color:#f85149}.text-success{color:#56d364}.text-warn{color:#e3b341}.text-info{color:#58a6ff}
+.w-full{width:100%}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <button class="notif-btn" onclick="toggleSidebar()" style="font-size:20px;color:#8b949e">☰</button>
+  <div class="logo">🛡️ <span>CyberSentinel <span style="color:#58a6ff">IR</span></span></div>
+  <input id="search-box" type="text" placeholder="🔍  Search incidents, IOCs, playbooks..." oninput="globalSearch(this.value)"/>
+  <div class="topbar-right">
+    <button class="notif-btn" onclick="showPage('audit')" title="Notifications">
+      🔔<span class="notif-badge" id="notif-count">3</span>
+    </button>
+    <div class="avatar" title="Analyst: J. Doe">JD</div>
+  </div>
+</div>
+
+<div id="main">
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <button class="sidebar-toggle" onclick="toggleSidebar()">◀</button>
+  <div class="nav-section">
+    <div class="nav-label">Operations</div>
+    <div class="nav-item active" onclick="showPage('dashboard')" data-page="dashboard"><span class="icon">📊</span><span class="label">Dashboard</span></div>
+    <div class="nav-item" onclick="showPage('incidents')" data-page="incidents"><span class="icon">🚨</span><span class="label">Incidents</span></div>
+    <div class="nav-item" onclick="showPage('simulator')" data-page="simulator"><span class="icon">🎮</span><span class="label">IR Simulator</span></div>
+    <div class="nav-item" onclick="showPage('investigation')" data-page="investigation"><span class="icon">🔍</span><span class="label">Investigation</span></div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Resources</div>
+    <div class="nav-item" onclick="showPage('playbooks')" data-page="playbooks"><span class="icon">📋</span><span class="label">Playbooks</span></div>
+    <div class="nav-item" onclick="showPage('threat-intel')" data-page="threat-intel"><span class="icon">🌐</span><span class="label">Threat Intel</span></div>
+    <div class="nav-item" onclick="showPage('reports')" data-page="reports"><span class="icon">📈</span><span class="label">Reports</span></div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">System</div>
+    <div class="nav-item" onclick="showPage('audit')" data-page="audit"><span class="icon">📝</span><span class="label">Audit Logs</span></div>
+    <div class="nav-item" onclick="showPage('settings')" data-page="settings"><span class="icon">⚙️</span><span class="label">Settings</span></div>
+  </div>
+</nav>
+
+<!-- CONTENT -->
+<div id="content">
+
+<!-- ==================== DASHBOARD ==================== -->
+<div id="page-dashboard" class="page active">
+  <div class="page-title">Security Operations Dashboard</div>
+  <div class="page-sub">Real-time overview of simulated incident response activity — <span class="badge badge-info" style="font-size:11px">SIMULATED DATA</span></div>
+  <div class="grid g4 mb-16" id="stat-cards"></div>
+  <div class="grid g2 mb-16">
+    <div class="card">
+      <div class="card-title">📊 Incident Trend (Last 7 Days)</div>
+      <div class="chart-wrap" id="trend-chart"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🎯 Incidents by Severity</div>
+      <div class="donut-wrap" id="severity-donut"></div>
+    </div>
+  </div>
+  <div class="grid g2 mb-16">
+    <div class="card">
+      <div class="card-title">📂 Incidents by Category</div>
+      <div class="chart-wrap" id="category-chart"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔄 Status Distribution</div>
+      <div class="donut-wrap" id="status-donut"></div>
+    </div>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <div class="card-title">⚡ Recent Incidents</div>
+      <table id="recent-incidents-table">
+        <thead><tr><th>ID</th><th>Title</th><th>Severity</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">🕐 Recent Activity</div>
+      <div class="timeline" id="activity-timeline"></div>
+    </div>
+  </div>
+  <div class="mt-16 flex gap-8">
+    <button class="btn btn-primary" onclick="openModal('create-incident-modal')">＋ New Incident</button>
+    <button class="btn btn-ghost" onclick="showPage('simulator')">🎮 Launch Simulation</button>
+  </div>
+</div>
+
+<!-- ==================== INCIDENTS ==================== -->
+<div id="page-incidents" class="page">
+  <div class="flex flex-between items-center mb-16">
+    <div><div class="page-title">Incident Management</div><div class="page-sub">Track, investigate, and resolve security incidents</div></div>
+    <div class="flex gap-8">
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('create-incident-modal')">＋ New Incident</button>
+    </div>
+  </div>
+  <div class="filter-row">
+    <input type="text" id="inc-search" placeholder="Search ID or title..." oninput="renderIncidentTable()"/>
+    <select id="inc-filter-sev" onchange="renderIncidentTable()"><option value="">All Severities</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select>
+    <select id="inc-filter-status" onchange="renderIncidentTable()"><option value="">All Statuses</option><option>New</option><option>Acknowledged</option><option>Investigating</option><option>Containment</option><option>Eradication</option><option>Recovery</option><option>Closed</option></select>
+    <select id="inc-filter-cat" onchange="renderIncidentTable()"><option value="">All Categories</option><option>Phishing</option><option>Malware</option><option>Brute Force</option><option>Unauthorized Access</option><option>Network Anomaly</option><option>Data Exfiltration</option><option>Ransomware</option></select>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table id="incidents-table">
+      <thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Severity</th><th>Status</th><th>Assigned</th><th>Detected</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="text-muted text-sm mt-8" id="inc-count"></div>
+</div>
+
+<!-- ==================== INCIDENT DETAIL ==================== -->
+<div id="page-incident-detail" class="page">
+  <div class="flex gap-8 mb-16">
+    <button class="btn btn-ghost btn-sm" onclick="showPage('incidents')">← Back</button>
+    <button class="btn btn-ghost btn-sm" onclick="openEditModal()">✏ Edit</button>
+    <button class="btn btn-ghost btn-sm" id="close-btn" onclick="closeIncident()">✖ Close Incident</button>
+  </div>
+  <div id="detail-content"></div>
+</div>
+
+<!-- ==================== SIMULATOR ==================== -->
+<div id="page-simulator" class="page">
+  <div id="sim-home">
+    <div class="page-title">Incident Response Simulator</div>
+    <div class="page-sub">Practice IR decision-making in a safe, isolated environment — no real systems are affected</div>
+    <div class="alert alert-warn">⚠ All scenarios are purely educational simulations. No real emails, malware, or attacks are involved.</div>
+    <div class="grid g2" id="scenario-cards"></div>
+  </div>
+  <div id="sim-active" class="hidden">
+    <div id="sim-content"></div>
+  </div>
+</div>
+
+<!-- ==================== INVESTIGATION ==================== -->
+<div id="page-investigation" class="page">
+  <div class="flex flex-between items-center mb-16">
+    <div><div class="page-title">Investigation Workspace</div><div class="page-sub">Deep-dive analysis for active incidents</div></div>
+    <select id="inv-incident-select" style="max-width:260px" onchange="loadInvestigation()"></select>
+  </div>
+  <div id="inv-content"></div>
+</div>
+
+<!-- ==================== PLAYBOOKS ==================== -->
+<div id="page-playbooks" class="page">
+  <div class="page-title">Response Playbooks</div>
+  <div class="page-sub">Step-by-step IR procedures — adapt all actions to your organization's policies and authorization boundaries</div>
+  <div class="alert alert-warn">⚠ Recommended actions must be authorized before execution. These are educational guidelines only.</div>
+  <div class="filter-row">
+    <select id="pb-select" onchange="renderPlaybook()" style="max-width:280px">
+      <option value="phishing">Phishing Response</option>
+      <option value="malware">Malware Infection</option>
+      <option value="bruteforce">Brute-Force Login</option>
+      <option value="compromised">Compromised Account</option>
+      <option value="network">Suspicious Network Activity</option>
+    </select>
+  </div>
+  <div id="pb-content"></div>
+</div>
+
+<!-- ==================== THREAT INTEL ==================== -->
+<div id="page-threat-intel" class="page">
+  <div class="page-title">Threat Intelligence</div>
+  <div class="page-sub">Simulated indicators of compromise — <span class="badge badge-warn" style="font-size:11px">ALL DATA IS FICTIONAL / SIMULATED</span></div>
+  <div class="alert alert-info">ℹ All IP addresses use RFC 5737 documentation ranges (192.0.2.x, 198.51.100.x, 203.0.113.x). All domains use reserved example.com. No real threat data is included.</div>
+  <div class="filter-row">
+    <input type="text" id="ioc-search" placeholder="Search indicator..." oninput="renderIOCTable()"/>
+    <select id="ioc-type-filter" onchange="renderIOCTable()"><option value="">All Types</option><option>IP Address</option><option>Domain</option><option>File Hash</option><option>Email</option></select>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden"><table id="ioc-table">
+    <thead><tr><th>Indicator</th><th>Type</th><th>Confidence</th><th>Associated Incident</th><th>First Seen</th><th>Last Seen</th><th>Notes</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+</div>
+
+<!-- ==================== REPORTS ==================== -->
+<div id="page-reports" class="page">
+  <div class="flex flex-between items-center mb-16">
+    <div><div class="page-title">Reports &amp; Analytics</div><div class="page-sub">Metrics derived from stored incident data</div></div>
+    <button class="btn btn-ghost btn-sm" onclick="exportReportCSV()">⬇ Export CSV</button>
+  </div>
+  <div class="filter-row">
+    <label style="display:flex;align-items:center;gap:8px;color:#8b949e;font-size:13px">From: <input type="date" id="rpt-from" style="width:140px"/></label>
+    <label style="display:flex;align-items:center;gap:8px;color:#8b949e;font-size:13px">To: <input type="date" id="rpt-to" style="width:140px"/></label>
+    <button class="btn btn-ghost btn-sm" onclick="renderReports()">Apply</button>
+  </div>
+  <div id="reports-content"></div>
+</div>
+
+<!-- ==================== AUDIT LOGS ==================== -->
+<div id="page-audit" class="page">
+  <div class="flex flex-between items-center mb-16">
+    <div><div class="page-title">Audit Logs</div><div class="page-sub">Read-only record of significant application activity</div></div>
+    <button class="btn btn-ghost btn-sm" onclick="exportAuditCSV()">⬇ Export</button>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table id="audit-table">
+      <thead><tr><th>Timestamp</th><th>Action</th><th>Incident</th><th>Details</th><th>Analyst</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ==================== SETTINGS ==================== -->
+<div id="page-settings" class="page">
+  <div class="page-title">Settings &amp; About</div>
+  <div class="page-sub">Application configuration and project information</div>
+  <div class="grid g2">
+    <div>
+      <div class="card mb-16">
+        <div class="card-title">⚙ Application Settings</div>
+        <div class="form-group"><label>Analyst Name</label><input type="text" id="analyst-name" value="Jane Doe"/></div>
+        <div class="form-group"><label>Auto-refresh Interval</label>
+          <select id="refresh-interval"><option value="0">Disabled</option><option value="30">30 seconds</option><option value="60">1 minute</option></select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveSettings()">Save Settings</button>
+      </div>
+      <div class="card">
+        <div class="card-title">🔄 Data Management</div>
+        <p class="text-sm text-muted mb-16">Reset simulation scores or all application data.</p>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost btn-sm" onclick="resetSimulations()">Reset Sim Scores</button>
+          <button class="btn btn-danger btn-sm" onclick="resetAllData()">⚠ Reset All Data</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card mb-16">
+        <div class="card-title">ℹ About CyberSentinel IR</div>
+        <p class="text-sm" style="margin-bottom:10px;color:#c9d1d9"><strong style="color:#58a6ff">CyberSentinel IR</strong> is an educational cybersecurity incident response simulation platform built for the IBM Cybersecurity Bootcamp.</p>
+        <table class="text-sm" style="width:100%">
+          <tr><td class="text-muted" style="padding:4px 0;width:120px">Version</td><td>1.0.0</td></tr>
+          <tr><td class="text-muted" style="padding:4px 0">Stack</td><td>HTML5 · CSS3 · Vanilla JS</td></tr>
+          <tr><td class="text-muted" style="padding:4px 0">Storage</td><td>localStorage (browser)</td></tr>
+          <tr><td class="text-muted" style="padding:4px 0">Author</td><td>IBM Bootcamp Student</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">🎓 Learning Outcomes</div>
+        <ul class="text-sm" style="padding-left:16px;color:#c9d1d9;line-height:2">
+          <li>Incident detection, triage, and classification</li>
+          <li>NIST SP 800-61 IR lifecycle</li>
+          <li>Containment, eradication, and recovery</li>
+          <li>Evidence handling and chain of custody</li>
+          <li>IOC identification and threat intelligence</li>
+          <li>Post-incident review and reporting</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="card mt-16">
+    <div class="card-title">⚠ Disclaimer</div>
+    <p class="text-sm text-muted">This application is a purely educational simulation. It does not send real phishing emails, execute malware, attempt unauthorized access, or interact with any real external system. All incidents, IP addresses, domains, file hashes, and indicators of compromise are entirely fictional. Use of this tool is intended for learning purposes only.</p>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ==================== MODALS ==================== -->
+<div class="modal-overlay" id="create-incident-modal">
+  <div class="modal">
+    <div class="modal-title">🚨 Create New Incident</div>
+    <div class="form-group"><label>Title *</label><input type="text" id="new-title" placeholder="Brief incident title"/></div>
+    <div class="grid g2">
+      <div class="form-group"><label>Category *</label>
+        <select id="new-cat"><option>Phishing</option><option>Malware</option><option>Brute Force</option><option>Unauthorized Access</option><option>Network Anomaly</option><option>Data Exfiltration</option><option>Ransomware</option></select>
+      </div>
+      <div class="form-group"><label>Severity *</label>
+        <select id="new-sev"><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Description *</label><textarea id="new-desc" placeholder="Describe the incident..."></textarea></div>
+    <div class="grid g2">
+      <div class="form-group"><label>Affected Host</label><input type="text" id="new-host" placeholder="e.g. WORKSTATION-42"/></div>
+      <div class="form-group"><label>Source IP (if known)</label><input type="text" id="new-ip" placeholder="e.g. 192.0.2.45"/></div>
+    </div>
+    <div class="form-group"><label>Assigned Analyst</label>
+      <select id="new-analyst"><option>Jane Doe</option><option>Marcus Chen</option><option>Sarah K.</option><option>Unassigned</option></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('create-incident-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createIncident()">Create Incident</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="edit-incident-modal">
+  <div class="modal">
+    <div class="modal-title">✏ Edit Incident</div>
+    <div class="form-group"><label>Title</label><input type="text" id="edit-title"/></div>
+    <div class="grid g2">
+      <div class="form-group"><label>Severity</label>
+        <select id="edit-sev"><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select id="edit-status"><option>New</option><option>Acknowledged</option><option>Investigating</option><option>Containment</option><option>Eradication</option><option>Recovery</option><option>Closed</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Assigned Analyst</label>
+      <select id="edit-analyst"><option>Jane Doe</option><option>Marcus Chen</option><option>Sarah K.</option><option>Unassigned</option></select>
+    </div>
+    <div class="form-group"><label>Description</label><textarea id="edit-desc"></textarea></div>
+    <div class="form-group"><label>Add Investigation Note</label><textarea id="edit-note" placeholder="New note to add to this incident..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('edit-incident-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="close-confirm-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">✖ Close Incident</div>
+    <p class="text-sm text-muted mb-16">Provide a resolution summary before closing this incident.</p>
+    <div class="form-group"><label>Resolution Summary *</label><textarea id="close-summary" placeholder="Describe how the incident was resolved..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('close-confirm-modal')">Cancel</button>
+      <button class="btn btn-success" onclick="confirmClose()">Confirm Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="action-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title" id="action-modal-title">Add Response Action</div>
+    <div class="form-group"><label>Action Description *</label><textarea id="action-desc" placeholder="Describe the response action taken..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('action-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAction()">Record Action</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== DATA STORE ====================
+const DB_KEY = 'cybersentinel_data';
+let db = {
+  incidents: [],
+  audit: [],
+  simScores: [],
+  playbookProgress: {},
+  notes: {},
+  evidence: {},
+  actions: {},
+  settings: { analyst: 'Jane Doe', refresh: 0 }
+};
+
+function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function loadDB() {
+  const s = localStorage.getItem(DB_KEY);
+  if (s) { try { db = Object.assign(db, JSON.parse(s)); } catch(e){} }
+}
+
+// ==================== SEED DATA ====================
+const SEED_INCIDENTS = [
+  { id:'INC-001', title:'Phishing Campaign Targeting Finance Team', category:'Phishing', severity:'High', status:'Investigating', description:'Multiple employees in the finance department received spear-phishing emails impersonating the CFO requesting wire transfer approvals. Three users clicked the embedded link.', host:'FINANCE-PC-07', sourceIp:'192.0.2.45', analyst:'Jane Doe', detected:'2024-11-15T08:22:00', updated:'2024-11-15T10:45:00', timeline:[], resolution:'' },
+  { id:'INC-002', title:'Ransomware Detected on Endpoint', category:'Ransomware', severity:'Critical', status:'Containment', description:'EDR alerted on file encryption behavior on a development workstation. Files with .locked extension discovered. Process tree shows suspicious PowerShell execution.', host:'DEV-WS-12', sourceIp:'', analyst:'Marcus Chen', detected:'2024-11-14T14:10:00', updated:'2024-11-15T09:00:00', timeline:[], resolution:'' },
+  { id:'INC-003', title:'Brute-Force Attack on VPN Gateway', category:'Brute Force', severity:'High', status:'Acknowledged', description:'Authentication logs show 3,400 failed login attempts against the VPN concentrator from a single source over 2 hours. Account lockouts triggered for 12 user accounts.', host:'VPN-GW-01', sourceIp:'203.0.113.88', analyst:'Sarah K.', detected:'2024-11-13T22:05:00', updated:'2024-11-14T08:30:00', timeline:[], resolution:'' },
+  { id:'INC-004', title:'Unauthorized Admin Account Access', category:'Unauthorized Access', severity:'Critical', status:'Eradication', description:'Privileged admin account logged in from an unrecognized geolocation (simulated offshore region) at 03:14 AM. No MFA prompt recorded. Lateral movement observed to three internal servers.', host:'DC-SERVER-01', sourceIp:'198.51.100.22', analyst:'Jane Doe', detected:'2024-11-12T03:15:00', updated:'2024-11-15T11:00:00', timeline:[], resolution:'' },
+  { id:'INC-005', title:'Suspicious Outbound Data Transfer', category:'Data Exfiltration', severity:'High', status:'Investigating', description:'DLP system flagged an unusual 4.2GB outbound transfer to an unclassified external endpoint over port 443. Occurred during off-hours. Source is a contractor laptop.', host:'CONTRACTOR-LT-03', sourceIp:'192.0.2.99', analyst:'Marcus Chen', detected:'2024-11-11T01:33:00', updated:'2024-11-14T16:00:00', timeline:[], resolution:'' },
+  { id:'INC-006', title:'Malware Detected: Trojan.GenericKD', category:'Malware', severity:'High', status:'Recovery', description:'AV engine flagged Trojan.GenericKD variant on endpoint. File placed in quarantine. Behavioral analysis indicates keylogger functionality. Credential rotation initiated.', host:'HR-PC-22', sourceIp:'', analyst:'Sarah K.', detected:'2024-11-10T11:00:00', updated:'2024-11-15T09:30:00', timeline:[], resolution:'' },
+  { id:'INC-007', title:'Port Scan from Internal Host', category:'Network Anomaly', severity:'Medium', status:'New', description:'IDS detected systematic port scanning activity originating from an internal host. Scanning 22, 80, 443, 3389 across the /24 subnet. Potential insider threat or compromised endpoint.', host:'INTERN-PC-05', sourceIp:'192.0.2.18', analyst:'Unassigned', detected:'2024-11-15T07:45:00', updated:'2024-11-15T07:45:00', timeline:[], resolution:'' },
+  { id:'INC-008', title:'Phishing Link Clicked — Credential Harvest', category:'Phishing', severity:'Medium', status:'Closed', description:'Single user clicked phishing link in email. Link led to fake login portal mimicking corporate SSO. Credentials entered and immediately used to authenticate. Forced password reset completed.', host:'SALES-PC-11', sourceIp:'198.51.100.77', analyst:'Jane Doe', detected:'2024-11-08T14:20:00', updated:'2024-11-10T16:00:00', timeline:[], resolution:'User password reset, session revoked, MFA enforced. Training assigned. No further compromise detected.' },
+  { id:'INC-009', title:'Suspicious PowerShell Execution', category:'Malware', severity:'High', status:'New', description:'EDR flagged encoded PowerShell command on finance workstation. Command attempted download from external URL. Process blocked at network layer. Memory dump captured.', host:'FINANCE-PC-12', sourceIp:'203.0.113.5', analyst:'Unassigned', detected:'2024-11-15T11:30:00', updated:'2024-11-15T11:30:00', timeline:[], resolution:'' },
+  { id:'INC-010', title:'Failed MFA Flood — Executive Account', category:'Brute Force', severity:'Medium', status:'Acknowledged', description:'Executive user account received 47 MFA push notifications over 20 minutes (MFA fatigue attack). User did not approve. Account temporarily suspended pending investigation.', host:'EXEC-MB-02', sourceIp:'192.0.2.201', analyst:'Marcus Chen', detected:'2024-11-14T19:50:00', updated:'2024-11-15T08:00:00', timeline:[], resolution:'' },
+];
+
+const SEED_IOC = [
+  { indicator:'192.0.2.45', type:'IP Address', confidence:'High', incident:'INC-001', firstSeen:'2024-11-15', lastSeen:'2024-11-15', notes:'Phishing email origin relay server (simulated)' },
+  { indicator:'203.0.113.88', type:'IP Address', confidence:'High', incident:'INC-003', firstSeen:'2024-11-13', lastSeen:'2024-11-14', notes:'Brute-force source — automated credential scanner' },
+  { indicator:'198.51.100.22', type:'IP Address', confidence:'High', incident:'INC-004', firstSeen:'2024-11-12', lastSeen:'2024-11-12', notes:'Admin login from unfamiliar location' },
+  { indicator:'malicious-update.example.com', type:'Domain', confidence:'High', incident:'INC-002', firstSeen:'2024-11-14', lastSeen:'2024-11-14', notes:'Ransomware C2 domain — simulated fictional domain' },
+  { indicator:'auth-verify.example.com', type:'Domain', confidence:'Medium', incident:'INC-008', firstSeen:'2024-11-08', lastSeen:'2024-11-08', notes:'Fake SSO credential harvest portal' },
+  { indicator:'a3f2d1c8e9b047f6a1234567890abcde', type:'File Hash', confidence:'High', incident:'INC-006', firstSeen:'2024-11-10', lastSeen:'2024-11-10', notes:'SHA-256 of quarantined trojan — fictional hash' },
+  { indicator:'b9e1234abcdef056789012345678fedc', type:'File Hash', confidence:'High', incident:'INC-002', firstSeen:'2024-11-14', lastSeen:'2024-11-14', notes:'Ransomware dropper hash — fictional' },
+  { indicator:'payroll@hr-update.example.com', type:'Email', confidence:'High', incident:'INC-001', firstSeen:'2024-11-15', lastSeen:'2024-11-15', notes:'Spoofed HR email address used in phishing campaign' },
+  { indicator:'203.0.113.5', type:'IP Address', confidence:'Medium', incident:'INC-009', firstSeen:'2024-11-15', lastSeen:'2024-11-15', notes:'PowerShell download source URL host (simulated)' },
+  { indicator:'192.0.2.201', type:'IP Address', confidence:'Medium', incident:'INC-010', firstSeen:'2024-11-14', lastSeen:'2024-11-14', notes:'MFA fatigue attack origin (simulated)' },
+];
+
+const AUDIT_SEED = [
+  { ts:'2024-11-15T11:30:00', action:'Incident Created', incId:'INC-009', detail:'New High severity incident created by Jane Doe', analyst:'Jane Doe' },
+  { ts:'2024-11-15T10:45:00', action:'Status Changed', incId:'INC-001', detail:'Status changed from Acknowledged → Investigating', analyst:'Jane Doe' },
+  { ts:'2024-11-15T09:00:00', action:'Status Changed', incId:'INC-002', detail:'Status changed from Investigating → Containment', analyst:'Marcus Chen' },
+  { ts:'2024-11-15T08:00:00', action:'Analyst Assigned', incId:'INC-010', detail:'Assigned to Marcus Chen', analyst:'System' },
+  { ts:'2024-11-14T16:00:00', action:'Note Added', incId:'INC-005', detail:'Investigation note added: Initial triage complete, reviewing DLP logs', analyst:'Marcus Chen' },
+  { ts:'2024-11-14T08:30:00', action:'Incident Acknowledged', incId:'INC-003', detail:'Incident acknowledged and assigned to Sarah K.', analyst:'Sarah K.' },
+  { ts:'2024-11-12T03:20:00', action:'Incident Created', incId:'INC-004', detail:'Critical incident auto-generated by SIEM rule', analyst:'System' },
+  { ts:'2024-11-10T16:00:00', action:'Incident Closed', incId:'INC-008', detail:'Closed with resolution: password reset, MFA enforced', analyst:'Jane Doe' },
+];
+
+function initData() {
+  loadDB();
+  if (!db.incidents || db.incidents.length === 0) {
+    db.incidents = SEED_INCIDENTS.map(i => ({...i, timeline: seedTimeline(i)}));
+    db.audit = [...AUDIT_SEED];
+    db.ioc = SEED_IOC;
+    saveDB();
+  }
+  if (!db.ioc) { db.ioc = SEED_IOC; saveDB(); }
+}
+
+function seedTimeline(inc) {
+  const lines = [];
+  lines.push({ ts: inc.detected, type:'info', text:'Incident detected and logged by monitoring system' });
+  if(inc.status !== 'New') lines.push({ ts: new Date(new Date(inc.detected).getTime()+3600000).toISOString(), type:'info', text:'Incident acknowledged by '+inc.analyst });
+  if(['Investigating','Containment','Eradication','Recovery','Closed'].includes(inc.status))
+    lines.push({ ts: new Date(new Date(inc.detected).getTime()+7200000).toISOString(), type:'high', text:'Investigation started — initial triage performed' });
+  if(['Containment','Eradication','Recovery','Closed'].includes(inc.status))
+    lines.push({ ts: new Date(new Date(inc.detected).getTime()+14400000).toISOString(), type:'crit', text:'Containment measures applied to affected systems' });
+  if(['Eradication','Recovery','Closed'].includes(inc.status))
+    lines.push({ ts: new Date(new Date(inc.detected).getTime()+21600000).toISOString(), type:'info', text:'Eradication completed — threat removed from environment' });
+  if(['Recovery','Closed'].includes(inc.status))
+    lines.push({ ts: new Date(new Date(inc.detected).getTime()+28800000).toISOString(), type:'success', text:'Recovery phase initiated — systems restored to normal operation' });
+  if(inc.status === 'Closed')
+    lines.push({ ts: inc.updated, type:'success', text:'Incident closed. '+inc.resolution });
+  return lines;
+}
+
+// ==================== NAVIGATION ====================
+let currentPage = 'dashboard';
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const el = document.getElementById('page-'+page);
+  if(el) el.classList.add('active');
+  const nav = document.querySelector(`[data-page="${page}"]`);
+  if(nav) nav.classList.add('active');
+  currentPage = page;
+  if(page==='dashboard') renderDashboard();
+  if(page==='incidents') renderIncidentTable();
+  if(page==='simulator') renderSimulatorHome();
+  if(page==='investigation') renderInvestigation();
+  if(page==='playbooks') renderPlaybook();
+  if(page==='threat-intel') renderIOCTable();
+  if(page==='reports') { setDefaultDates(); renderReports(); }
+  if(page==='audit') renderAuditTable();
+}
+
+function toggleSidebar() {
+  const s = document.getElementById('sidebar');
+  s.classList.toggle('collapsed');
+}
+
+// ==================== UTILS ====================
+function ts(d) { return new Date(d).toLocaleString(); }
+function dateStr(d) { return new Date(d).toLocaleDateString(); }
+function fmtDuration(ms) {
+  if(ms<0) return 'N/A';
+  const h = Math.floor(ms/3600000);
+  const m = Math.floor((ms%3600000)/60000);
+  return h>0 ? `${h}h ${m}m` : `${m}m`;
+}
+function sevBadge(s) {
+  const map = {Critical:'badge-crit',High:'badge-high',Medium:'badge-med',Low:'badge-low'};
+  return `<span class="badge ${map[s]||'badge-low'}">${s}</span>`;
+}
+function statusBadge(s) {
+  const map = {New:'badge-new',Acknowledged:'badge-ack',Investigating:'badge-inv',Containment:'badge-cont',Eradication:'badge-cont',Recovery:'badge-rec',Closed:'badge-closed'};
+  return `<span class="badge ${map[s]||'badge-new'}">${s}</span>`;
+}
+function genId() {
+  const nums = db.incidents.map(i=>parseInt(i.id.replace('INC-',''))||0);
+  return 'INC-'+ String((Math.max(0,...nums)+1)).padStart(3,'0');
+}
+function addAudit(action, incId, detail) {
+  db.audit.unshift({ ts: new Date().toISOString(), action, incId: incId||'', detail, analyst: db.settings.analyst||'Jane Doe' });
+  saveDB();
+}
+
+// ==================== MODALS ====================
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); }));
+
+// ==================== DASHBOARD ====================
+function renderDashboard() {
+  const incs = db.incidents;
+  const total = incs.length;
+  const open = incs.filter(i=>i.status!=='Closed').length;
+  const critical = incs.filter(i=>i.severity==='Critical').length;
+  const high = incs.filter(i=>i.severity==='High').length;
+  const investigating = incs.filter(i=>i.status==='Investigating').length;
+  const resolved = incs.filter(i=>i.status==='Closed').length;
+
+  // MTTA/MTTR
+  let mttaMs = [], mttrMs = [];
+  incs.forEach(i => {
+    const det = new Date(i.detected).getTime();
+    const upd = new Date(i.updated).getTime();
+    if(i.status !== 'New') mttaMs.push(upd - det);
+    if(i.status === 'Closed') mttrMs.push(upd - det);
+  });
+  const mtta = mttaMs.length ? fmtDuration(mttaMs.reduce((a,b)=>a+b,0)/mttaMs.length) : 'N/A';
+  const mttr = mttrMs.length ? fmtDuration(mttrMs.reduce((a,b)=>a+b,0)/mttrMs.length) : 'N/A';
+
+  document.getElementById('stat-cards').innerHTML = [
+    ['📋','Total Incidents', total, ''],
+    ['🔥','Open Incidents', open, 'text-warn'],
+    ['🚨','Critical / High', `${critical} / ${high}`, 'text-danger'],
+    ['🔍','Investigating', investigating, 'text-info'],
+    ['✅','Resolved', resolved, 'text-success'],
+    ['⏱','MTTA', mtta, 'text-info'],
+    ['⏰','MTTR', mttr, 'text-success'],
+    ['📊','Sim Sessions', db.simScores.length, ''],
+  ].map(([icon,title,val,cls]) => `<div class="card"><div class="card-title">${icon} ${title}</div><div class="stat-val ${cls}">${val}</div></div>`).join('');
+
+  // Trend chart
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const trendVals = [4,7,3,8,5,2,incs.filter(i=>new Date(i.detected).toDateString()===new Date().toDateString()).length||3];
+  const maxT = Math.max(...trendVals);
+  document.getElementById('trend-chart').innerHTML = `<div class="bar-chart">${days.map((d,i)=>`<div class="bar" style="height:${(trendVals[i]/maxT*100)}%;background:#1f6feb"><span class="bar-val">${trendVals[i]}</span><span class="bar-label">${d}</span></div>`).join('')}</div>`;
+
+  // Severity donut
+  const sevCounts = {Critical:0,High:0,Medium:0,Low:0};
+  incs.forEach(i=>sevCounts[i.severity]=(sevCounts[i.severity]||0)+1);
+  drawDonut('severity-donut', [{label:'Critical',val:sevCounts.Critical,color:'#f85149'},{label:'High',val:sevCounts.High,color:'#f0883e'},{label:'Medium',val:sevCounts.Medium,color:'#e3b341'},{label:'Low',val:sevCounts.Low,color:'#56d364'}], total);
+
+  // Category chart
+  const catCounts = {};
+  incs.forEach(i => catCounts[i.category]=(catCounts[i.category]||0)+1);
+  const cats = Object.keys(catCounts);
+  const maxC = Math.max(...Object.values(catCounts));
+  const colors = ['#1f6feb','#58a6ff','#f0883e','#f85149','#e3b341','#56d364','#a371f7'];
+  document.getElementById('category-chart').innerHTML = `<div class="bar-chart">${cats.map((c,i)=>`<div class="bar" style="height:${(catCounts[c]/maxC*100)}%;background:${colors[i%colors.length]}"><span class="bar-val">${catCounts[c]}</span><span class="bar-label">${c.split(' ')[0]}</span></div>`).join('')}</div>`;
+
+  // Status donut
+  const stCounts = {};
+  incs.forEach(i => stCounts[i.status]=(stCounts[i.status]||0)+1);
+  const stColors = {New:'#58a6ff',Acknowledged:'#a371f7',Investigating:'#e3b341',Containment:'#f0883e',Eradication:'#f85149',Recovery:'#56d364',Closed:'#8b949e'};
+  drawDonut('status-donut', Object.keys(stCounts).map(s=>({label:s,val:stCounts[s],color:stColors[s]||'#58a6ff'})), total);
+
+  // Recent incidents
+  const recent = [...incs].sort((a,b)=>new Date(b.detected)-new Date(a.detected)).slice(0,5);
+  document.querySelector('#recent-incidents-table tbody').innerHTML = recent.map(i=>`<tr style="cursor:pointer" onclick="openDetail('${i.id}')"><td style="color:#58a6ff;font-family:monospace">${i.id}</td><td>${i.title.substring(0,40)}${i.title.length>40?'...':''}</td><td>${sevBadge(i.severity)}</td><td>${statusBadge(i.status)}</td></tr>`).join('');
+
+  // Activity timeline
+  const auditItems = db.audit.slice(0,6);
+  document.getElementById('activity-timeline').innerHTML = auditItems.map(a=>`<div class="tl-item tl-info"><div class="tl-time">${ts(a.ts)}</div><div class="tl-text"><strong>${a.action}</strong>${a.incId?' — '+a.incId:''}<br/><span class="text-muted text-sm">${a.detail}</span></div></div>`).join('');
+
+  document.getElementById('notif-count').textContent = incs.filter(i=>i.severity==='Critical'&&i.status!=='Closed').length;
+}
+
+function drawDonut(containerId, items, total) {
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  const r=40, cx=50, cy=50, circ=2*Math.PI*r;
+  let offset = 0;
+  const paths = items.filter(i=>i.val>0).map(i=>{
+    const pct = i.val/total;
+    const dash = pct*circ;
+    const p = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${i.color}" stroke-width="12" stroke-dasharray="${dash} ${circ-dash}" stroke-dashoffset="${-offset}" />`;
+    offset += dash;
+    return p;
+  }).join('');
+  el.innerHTML = `<div class="donut"><svg viewBox="0 0 100 100" width="100" height="100"><circle cx="50" cy="50" r="40" fill="none" stroke="#21262d" stroke-width="12"/>${paths}</svg><div class="donut-label">${total}</div></div><div class="legend">${items.map(i=>`<div class="legend-item"><div class="legend-dot" style="background:${i.color}"></div><span>${i.label}: ${i.val}</span></div>`).join('')}</div>`;
+}
+
+// ==================== INCIDENTS ====================
+function renderIncidentTable() {
+  const search = (document.getElementById('inc-search')||{}).value?.toLowerCase()||'';
+  const fSev = (document.getElementById('inc-filter-sev')||{}).value||'';
+  const fStat = (document.getElementById('inc-filter-status')||{}).value||'';
+  const fCat = (document.getElementById('inc-filter-cat')||{}).value||'';
+  let filtered = db.incidents.filter(i => {
+    if(search && !i.id.toLowerCase().includes(search) && !i.title.toLowerCase().includes(search)) return false;
+    if(fSev && i.severity!==fSev) return false;
+    if(fStat && i.status!==fStat) return false;
+    if(fCat && i.category!==fCat) return false;
+    return true;
+  });
+  const tbody = document.querySelector('#incidents-table tbody');
+  tbody.innerHTML = filtered.map(i=>`<tr style="cursor:pointer" onclick="openDetail('${i.id}')">
+    <td style="color:#58a6ff;font-family:monospace;font-size:12px">${i.id}</td>
+    <td>${i.title}</td>
+    <td><span class="text-muted text-sm">${i.category}</span></td>
+    <td>${sevBadge(i.severity)}</td>
+    <td>${statusBadge(i.status)}</td>
+    <td class="text-muted text-sm">${i.analyst}</td>
+    <td class="text-muted text-sm">${dateStr(i.detected)}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openDetail('${i.id}')">View →</button></td>
+  </tr>`).join('');
+  const cnt = document.getElementById('inc-count');
+  if(cnt) cnt.textContent = `Showing ${filtered.length} of ${db.incidents.length} incidents`;
+}
+
+let editingId = null;
+function openDetail(id) {
+  const inc = db.incidents.find(i=>i.id===id);
+  if(!inc) return;
+  editingId = id;
+  const notes = db.notes[id]||[];
+  const evidence = db.evidence[id]||[];
+  const actions = db.actions[id]||[];
+  document.getElementById('detail-content').innerHTML = `
+    <div class="grid g2 mb-16">
+      <div>
+        <div style="font-size:11px;color:#8b949e;font-family:monospace;margin-bottom:4px">${inc.id}</div>
+        <div style="font-size:20px;font-weight:700;color:#e6edf3;margin-bottom:12px">${inc.title}</div>
+        <div class="flex gap-8 mb-16">${sevBadge(inc.severity)} ${statusBadge(inc.status)} <span class="badge" style="background:#1c2128;color:#8b949e;border:1px solid #30363d">${inc.category}</span></div>
+        <p class="text-sm" style="color:#c9d1d9;line-height:1.7;margin-bottom:16px">${inc.description}</p>
+        <table class="text-sm" style="width:100%">
+          <tr><td class="text-muted" style="padding:4px 0;width:130px">Assigned Analyst</td><td>${inc.analyst}</td></tr>
+          <tr><td class="text-muted" style="padding:4px 0">Affected Host</td><td style="font-family:monospace;color:#79c0ff">${inc.host||'N/A'}</td></tr>
+          <tr><td class="text-muted" style="padding:4px 0">Source IP</td><td style="font-family:monospace;color:#79c0ff">${inc.sourceIp||'N/A'}</td></tr>
+          <tr><td class="text-muted" style="padding:4px 0">Detected</td><td>${ts(inc.detected)}</td></tr>
+          <tr><td class="text-muted" style="padding:4px 0">Last Updated</td><td>${ts(inc.updated)}</td></tr>
+        </table>
+        ${inc.resolution?`<div class="alert alert-success mt-16"><strong>Resolution:</strong> ${inc.resolution}</div>`:''}
+      </div>
+      <div>
+        <div class="card-title">📅 Incident Timeline</div>
+        <div class="timeline">${(inc.timeline||[]).map(t=>`<div class="tl-item tl-${t.type}"><div class="tl-time">${ts(t.ts)}</div><div class="tl-text">${t.text}</div></div>`).join('')||'<p class="text-muted text-sm">No timeline events yet.</p>'}</div>
+      </div>
+    </div>
+    <div class="tabs" style="margin-bottom:20px">
+      <div class="tab active" onclick="switchDetailTab('notes',this)">🗒 Notes (${notes.length})</div>
+      <div class="tab" onclick="switchDetailTab('evidence',this)">🔎 Evidence (${evidence.length})</div>
+      <div class="tab" onclick="switchDetailTab('actions',this)">⚡ Response Actions (${actions.length})</div>
+    </div>
+    <div id="detail-notes" class="detail-tab">
+      <button class="btn btn-ghost btn-sm mb-16" onclick="addNotePrompt()">＋ Add Note</button>
+      ${notes.length===0?'<p class="text-muted text-sm">No investigation notes yet.</p>':''}
+      ${notes.map((n,i)=>`<div class="card mb-16" style="padding:14px"><div class="flex flex-between items-center mb-16"><span class="text-sm text-muted">${ts(n.ts)} — ${n.analyst}</span><button class="btn btn-ghost btn-sm" onclick="deleteNote('${id}',${i})">🗑</button></div><p class="text-sm">${n.text}</p></div>`).join('')}
+    </div>
+    <div id="detail-evidence" class="detail-tab hidden">
+      <button class="btn btn-ghost btn-sm mb-16" onclick="addEvidencePrompt()">＋ Add Evidence</button>
+      ${evidence.length===0?'<p class="text-muted text-sm">No evidence recorded yet.</p>':''}
+      <table>${evidence.length?'<thead><tr><th>Description</th><th>Classification</th><th>Added</th><th>Action</th></tr></thead>':''}<tbody>${evidence.map((e,i)=>`<tr><td>${e.desc}</td><td><select onchange="updateEvidenceClass('${id}',${i},this.value)" style="width:auto;padding:3px 8px"><option ${e.cls==='Unreviewed'?'selected':''}>Unreviewed</option><option ${e.cls==='Under Review'?'selected':''}>Under Review</option><option ${e.cls==='Confirmed Relevant'?'selected':''}>Confirmed Relevant</option><option ${e.cls==='Not Relevant'?'selected':''}>Not Relevant</option></select></td><td class="text-muted text-sm">${ts(e.ts)}</td><td><button class="btn btn-ghost btn-sm" onclick="deleteEvidence('${id}',${i})">🗑</button></td></tr>`).join('')}</tbody></table>
+    </div>
+    <div id="detail-actions" class="detail-tab hidden">
+      <button class="btn btn-ghost btn-sm mb-16" onclick="openModal('action-modal')">＋ Record Action</button>
+      ${actions.length===0?'<p class="text-muted text-sm">No response actions recorded yet.</p>':''}
+      ${actions.map((a,i)=>`<div class="card mb-16" style="padding:14px"><div class="flex flex-between items-center mb-16"><span class="text-sm text-muted">${ts(a.ts)} — ${a.analyst}</span></div><p class="text-sm">⚡ ${a.text}</p></div>`).join('')}
+    </div>`;
+  showPage('incident-detail');
+}
+
+function switchDetailTab(tab, el) {
+  document.querySelectorAll('.detail-tab').forEach(t=>t.classList.add('hidden'));
+  document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('detail-'+tab).classList.remove('hidden');
+  el.classList.add('active');
+}
+
+function addNotePrompt() {
+  const text = prompt('Enter investigation note:');
+  if(!text) return;
+  if(!db.notes[editingId]) db.notes[editingId]=[];
+  db.notes[editingId].push({text, ts:new Date().toISOString(), analyst:db.settings.analyst||'Jane Doe'});
+  addAudit('Note Added', editingId, 'Investigation note added: '+text.substring(0,60));
+  const inc = db.incidents.find(i=>i.id===editingId);
+  if(inc) { inc.updated = new Date().toISOString(); if(inc.timeline) inc.timeline.push({ts:new Date().toISOString(),type:'info',text:'Note added by '+db.settings.analyst}); }
+  saveDB(); openDetail(editingId);
+}
+function deleteNote(id,idx) {
+  if(!confirm('Delete this note?')) return;
+  db.notes[id].splice(idx,1); saveDB(); openDetail(id);
+}
+function addEvidencePrompt() {
+  const desc = prompt('Describe the evidence:');
+  if(!desc) return;
+  if(!db.evidence[editingId]) db.evidence[editingId]=[];
+  db.evidence[editingId].push({desc, cls:'Unreviewed', ts:new Date().toISOString()});
+  addAudit('Evidence Added', editingId, 'Evidence recorded: '+desc.substring(0,60));
+  saveDB(); openDetail(editingId);
+}
+function deleteEvidence(id,idx) {
+  if(!confirm('Remove this evidence?')) return;
+  db.evidence[id].splice(idx,1); saveDB(); openDetail(id);
+}
+function updateEvidenceClass(id,idx,cls) {
+  db.evidence[id][idx].cls = cls; saveDB();
+}
+function saveAction() {
+  const text = document.getElementById('action-desc').value.trim();
+  if(!text) { alert('Please describe the action.'); return; }
+  if(!db.actions[editingId]) db.actions[editingId]=[];
+  db.actions[editingId].push({text, ts:new Date().toISOString(), analyst:db.settings.analyst||'Jane Doe'});
+  const inc = db.incidents.find(i=>i.id===editingId);
+  if(inc) { inc.updated = new Date().toISOString(); inc.timeline.push({ts:new Date().toISOString(),type:'high',text:'Response action recorded: '+text.substring(0,60)}); }
+  addAudit('Response Action', editingId, 'Action recorded: '+text.substring(0,60));
+  document.getElementById('action-desc').value='';
+  saveDB(); closeModal('action-modal'); openDetail(editingId);
+}
+
+function openEditModal() {
+  const inc = db.incidents.find(i=>i.id===editingId);
+  if(!inc) return;
+  document.getElementById('edit-title').value = inc.title;
+  document.getElementById('edit-sev').value = inc.severity;
+  document.getElementById('edit-status').value = inc.status;
+  document.getElementById('edit-analyst').value = inc.analyst;
+  document.getElementById('edit-desc').value = inc.description;
+  document.getElementById('edit-note').value = '';
+  openModal('edit-incident-modal');
+}
+function saveEdit() {
+  const inc = db.incidents.find(i=>i.id===editingId);
+  if(!inc) return;
+  const newSev = document.getElementById('edit-sev').value;
+  const newStat = document.getElementById('edit-status').value;
+  const newAnalyst = document.getElementById('edit-analyst').value;
+  if(newSev!==inc.severity) { addAudit('Severity Changed', inc.id, `${inc.severity} → ${newSev}`); inc.timeline.push({ts:new Date().toISOString(),type:'crit',text:`Severity changed: ${inc.severity} → ${newSev}`}); }
+  if(newStat!==inc.status) { addAudit('Status Changed', inc.id, `${inc.status} → ${newStat}`); inc.timeline.push({ts:new Date().toISOString(),type:'info',text:`Status changed: ${inc.status} → ${newStat}`}); }
+  if(newAnalyst!==inc.analyst) { addAudit('Analyst Assigned', inc.id, `Assigned to ${newAnalyst}`); }
+  inc.title = document.getElementById('edit-title').value;
+  inc.severity = newSev; inc.status = newStat; inc.analyst = newAnalyst;
+  inc.description = document.getElementById('edit-desc').value;
+  inc.updated = new Date().toISOString();
+  const note = document.getElementById('edit-note').value.trim();
+  if(note) { if(!db.notes[editingId]) db.notes[editingId]=[]; db.notes[editingId].push({text:note,ts:new Date().toISOString(),analyst:db.settings.analyst}); addAudit('Note Added', inc.id, note.substring(0,60)); }
+  saveDB(); closeModal('edit-incident-modal'); openDetail(editingId);
+}
+
+function closeIncident() {
+  const inc = db.incidents.find(i=>i.id===editingId);
+  if(!inc) return;
+  if(inc.status==='Closed') { if(confirm('Reopen this incident?')) { inc.status='Investigating'; inc.updated=new Date().toISOString(); inc.timeline.push({ts:new Date().toISOString(),type:'warn',text:'Incident reopened'}); addAudit('Incident Reopened', inc.id, 'Incident reopened for further investigation'); saveDB(); openDetail(editingId); } return; }
+  openModal('close-confirm-modal');
+}
+function confirmClose() {
+  const sum = document.getElementById('close-summary').value.trim();
+  if(!sum) { alert('Please provide a resolution summary.'); return; }
+  const inc = db.incidents.find(i=>i.id===editingId);
+  inc.status='Closed'; inc.resolution=sum; inc.updated=new Date().toISOString();
+  inc.timeline.push({ts:new Date().toISOString(),type:'success',text:'Incident closed: '+sum});
+  addAudit('Incident Closed', inc.id, sum.substring(0,80));
+  saveDB(); closeModal('close-confirm-modal'); openDetail(editingId);
+}
+
+function createIncident() {
+  const title = document.getElementById('new-title').value.trim();
+  const desc = document.getElementById('new-desc').value.trim();
+  if(!title||!desc) { alert('Title and description are required.'); return; }
+  const now = new Date().toISOString();
+  const inc = {
+    id: genId(), title, description: desc,
+    category: document.getElementById('new-cat').value,
+    severity: document.getElementById('new-sev').value,
+    status:'New', analyst: document.getElementById('new-analyst').value,
+    host: document.getElementById('new-host').value||'', sourceIp: document.getElementById('new-ip').value||'',
+    detected:now, updated:now, timeline:[{ts:now,type:'info',text:'Incident created by '+db.settings.analyst}], resolution:''
+  };
+  db.incidents.unshift(inc);
+  addAudit('Incident Created', inc.id, `${inc.severity} ${inc.category} incident created by ${db.settings.analyst}`);
+  ['new-title','new-desc','new-host','new-ip'].forEach(id=>document.getElementById(id).value='');
+  saveDB(); closeModal('create-incident-modal');
+  renderIncidentTable(); showPage('incidents');
+  alert(`✅ Incident ${inc.id} created successfully.`);
+}
+
+function exportCSV() {
+  const headers = ['ID','Title','Category','Severity','Status','Analyst','Detected','Updated','Description'];
+  const rows = db.incidents.map(i=>[i.id,`"${i.title}"`,i.category,i.severity,i.status,i.analyst,i.detected,i.updated,`"${i.description}"`]);
+  const csv = [headers.join(','),...rows.map(r=>r.join(','))].join('\n');
+  downloadFile('incidents_export.csv','text/csv',csv);
+  addAudit('Report Exported','','Incidents CSV exported by '+db.settings.analyst);
+}
+function downloadFile(name, type, content) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content],{type}));
+  a.download = name; a.click();
+}
+
+// ==================== GLOBAL SEARCH ====================
+function globalSearch(q) {
+  if(!q) return;
+  const lq = q.toLowerCase();
+  const results = db.incidents.filter(i=>i.id.toLowerCase().includes(lq)||i.title.toLowerCase().includes(lq)||i.category.toLowerCase().includes(lq));
+  if(results.length>0) { document.getElementById('inc-search').value=q; showPage('incidents'); }
+}
+
+// ==================== SIMULATOR ====================
+const SCENARIOS = [
+  { id:'phishing', title:'📧 Phishing Email Attack', difficulty:'Easy', objectives:['Identify phishing indicators','Apply email security procedures','Escalate appropriately'],
+    bg:'Your organization\'s finance team has flagged a suspicious email requesting urgent wire transfer approval. Several employees have already opened it.', steps:[
+    { title:'Step 1: Review the Suspicious Email', type:'review',
+      content:`<div class="card" style="background:#1c0000;border-color:#f85149"><div style="padding:14px"><div class="text-sm text-muted mb-16">FROM: payroll@hr-update.example.com &nbsp;|&nbsp; TO: finance-team@company.internal &nbsp;|&nbsp; TIME: 08:14 AM</div><div style="font-size:15px;font-weight:600;color:#ffa198;margin-bottom:10px">SUBJECT: URGENT: CEO Wire Transfer Approval Required — Today Only</div><p class="text-sm" style="line-height:1.8">Dear Finance Team,<br/><br/>I need you to process an urgent wire transfer of $87,500 to our new vendor immediately. This is time-sensitive and <strong>must</strong> be completed before market close.<br/><br/>Link: <a style="color:#f85149">http://wire-approval.example.com/verify?token=AB923</a><br/><br/>Do NOT reply to this email — click the link to authorize.<br/><br/>— Michael Thompson, CEO</p></div></div>`,
+      question:'What suspicious indicators do you identify in this email?',
+      choices:[
+        { text:'A. Sender domain does not match the corporate domain; urgency language; suspicious external link; impersonating executive', correct:true, feedback:'✅ Correct! Classic phishing indicators: domain mismatch (hr-update.example.com ≠ company.internal), urgency/pressure tactics, impersonation of authority, and a suspicious redirect link. Never click such links.' },
+        { text:'B. The email looks legitimate — the CEO often sends urgent requests. Click the link to review the transfer.', correct:false, feedback:'❌ Incorrect. Never click links in urgent emails without verification. This is a Business Email Compromise (BEC) phishing attempt. Always verify out-of-band by calling the sender directly.' },
+        { text:'C. Forward the email to all employees as a warning', correct:false, feedback:'⚠ Partially correct intent — alerting others is good — but mass-forwarding a phishing email spreads it further. Report it to your security team and let them handle the communication.' },
+      ]
+    },
+    { title:'Step 2: Escalation Decision', type:'decision',
+      content:'Three employees have clicked the link. The link redirects to a fake login page mimicking your corporate SSO portal.',
+      question:'What is your immediate response priority?',
+      choices:[
+        { text:'A. Isolate affected endpoints, force password resets for users who clicked, revoke active sessions, notify security team', correct:true, feedback:'✅ Correct! Immediate containment: isolate endpoints to prevent lateral movement, force credential resets for potentially compromised users, revoke all active sessions, and escalate to the security team for a full investigation.' },
+        { text:'B. Send an awareness email to all users and wait to see if any accounts show suspicious activity', correct:false, feedback:'❌ Incorrect. Waiting is dangerous. Credentials may already be harvested and in use. Immediate containment is required — every minute without action increases the attack surface.' },
+        { text:'C. Block the phishing domain and close the ticket', correct:false, feedback:'⚠ Domain blocking is necessary but insufficient. The users who clicked may already have entered credentials. Account compromise must be addressed first.' },
+      ]
+    },
+    { title:'Step 3: Post-Incident Actions', type:'decision',
+      content:'Credentials for two users were confirmed entered on the fake portal. Their accounts showed no unauthorized access within the 15-minute window before password resets.',
+      question:'What post-incident actions are most appropriate?',
+      choices:[
+        { text:'A. Document the incident, assign mandatory security awareness training to affected users, submit IOCs to threat intel, review email filtering rules', correct:true, feedback:'✅ Correct! Comprehensive post-incident actions: documentation for audit purposes, training to prevent recurrence, IOC sharing for threat intelligence, and improving detection by tuning email security filters.' },
+        { text:'B. The threat is over — close the ticket immediately with no further action', correct:false, feedback:'❌ Incorrect. Without documentation, training, and filter improvements, the same attack vector remains open. Post-incident review is critical to preventing recurrence.' },
+        { text:'C. Fire the users who clicked the link', correct:false, feedback:'❌ Incorrect. Phishing attacks are designed to fool even security-aware users. The response should be additional training and process improvements, not punitive action.' },
+      ]
+    }
+  ]},
+  { id:'bruteforce', title:'🔐 Brute-Force Login Attack', difficulty:'Medium', objectives:['Analyze authentication logs for attack patterns','Apply account lockout and IP block procedures','Distinguish legitimate from malicious access'],
+    bg:'Your SIEM has triggered an alert for unusual authentication activity against the VPN gateway. You have been paged at 02:30 AM.', steps:[
+    { title:'Step 1: Analyze the Authentication Logs', type:'review',
+      content:`<div class="card" style="font-family:monospace;font-size:12px;color:#79c0ff;background:#0a0f1a;border-color:#30363d"><div style="padding:14px;line-height:2">2024-11-13 22:01:02 FAILED vpn-auth user=admin src=203.0.113.88<br/>2024-11-13 22:01:03 FAILED vpn-auth user=administrator src=203.0.113.88<br/>2024-11-13 22:01:04 FAILED vpn-auth user=root src=203.0.113.88<br/>2024-11-13 22:01:05 FAILED vpn-auth user=jdoe src=203.0.113.88<br/>... (3,396 more failures) ...<br/>2024-11-13 23:58:11 FAILED vpn-auth user=mchen src=203.0.113.88<br/>2024-11-13 23:58:12 FAILED vpn-auth user=skaur src=203.0.113.88<br/><br/><span style="color:#f85149">⚠ LOCKOUT: account jdoe locked after 10 failures (22:03:44)</span><br/><span style="color:#f85149">⚠ LOCKOUT: account mchen locked after 10 failures (23:41:22)</span></div></div>`,
+      question:'What does this log data indicate?',
+      choices:[
+        { text:'A. An automated credential stuffing or brute-force attack from IP 203.0.113.88 — systematic username enumeration with high-frequency attempts', correct:true, feedback:'✅ Correct! The pattern shows: single source IP, sequential usernames (dictionary attack), sub-second timing (automated tool), and 3,400+ attempts over 2 hours. This is a credential stuffing attack.' },
+        { text:'B. A user who forgot their password and is repeatedly retrying', correct:false, feedback:'❌ Incorrect. A user who forgot their password would not attempt 3,400 different usernames at sub-second intervals from the same IP. This is clearly automated and malicious.' },
+        { text:'C. A misconfigured monitoring agent causing false alerts', correct:false, feedback:'❌ Incorrect. The log data shows actual authentication failures from a single external IP across multiple usernames. This is a real brute-force attack pattern.' },
+      ]
+    },
+    { title:'Step 2: Containment Decision', type:'decision',
+      content:'The attack is ongoing. Account lockouts have triggered for 12 accounts. Your VPN has a rate-limiting feature available.',
+      question:'What is your immediate containment action?',
+      choices:[
+        { text:'A. Block IP 203.0.113.88 at the firewall, enable rate limiting on VPN auth, unlock affected accounts with forced password resets, notify account holders', correct:true, feedback:'✅ Correct! Multi-layered containment: block the attack source, rate-limit to prevent similar attacks, reset locked accounts, and notify users. Document all actions with timestamps.' },
+        { text:'B. Disable the VPN service completely to stop the attack', correct:false, feedback:'⚠ This would stop the attack but also deny service to all legitimate VPN users. Targeted blocking of the attack source is preferred over a complete service outage.' },
+        { text:'C. Monitor the attack for 24 hours to gather more evidence before acting', correct:false, feedback:'❌ Incorrect. Delaying containment allows the attack to continue. Even if no credentials are compromised yet, account lockouts are causing a denial-of-service condition for legitimate users.' },
+      ]
+    },
+    { title:'Step 3: Investigation & Hardening', type:'decision',
+      content:'The IP has been blocked. No successful authentication from the attacker IP was detected. Account lockouts have been cleared.',
+      question:'What hardening measures do you recommend to prevent recurrence?',
+      choices:[
+        { text:'A. Implement MFA on VPN, configure geo-blocking for unexpected regions, add CAPTCHA on repeated failures, review and improve password policy, schedule penetration testing', correct:true, feedback:'✅ Excellent! Defense-in-depth: MFA makes stolen passwords useless, geo-blocking adds a layer, CAPTCHA defeats automation, stronger password policies reduce brute-force success, and pen testing validates defenses.' },
+        { text:'B. Increase account lockout threshold to 100 attempts to reduce lockout alerts', correct:false, feedback:'❌ Incorrect. Increasing the lockout threshold makes it easier to brute-force accounts. The correct approach is to reduce the threshold and add MFA.' },
+        { text:'C. Change the VPN login page URL to obscure it from attackers', correct:false, feedback:'⚠ Security through obscurity is not a reliable defense. Attackers can enumerate ports and services. Proper authentication controls (MFA, rate limiting) are far more effective.' },
+      ]
+    }
+  ]},
+  { id:'malware', title:'🦠 Malware Detection', difficulty:'Medium', objectives:['Analyze endpoint security alerts','Apply malware containment procedures','Perform safe evidence collection'],
+    bg:'Your EDR platform has flagged suspicious activity on HR-PC-22. The alert severity is HIGH. The system is currently online.', steps:[
+    { title:'Step 1: Review the EDR Alert', type:'review',
+      content:`<div class="card" style="background:#1a0d00;border-color:#f0883e"><div style="padding:14px"><div class="flex flex-between mb-16"><strong style="color:#f0883e">⚠ HIGH SEVERITY ALERT — EDR Detection</strong><span class="text-sm text-muted">2024-11-10 11:02:34</span></div><table class="text-sm"><tr><td class="text-muted" style="padding:3px 12px 3px 0;width:120px">Host</td><td style="font-family:monospace;color:#79c0ff">HR-PC-22</td></tr><tr><td class="text-muted" style="padding:3px 12px 3px 0">Detection</td><td style="color:#f0883e">Trojan.GenericKD — keylogger behavior</td></tr><tr><td class="text-muted" style="padding:3px 12px 3px 0">File Path</td><td style="font-family:monospace;color:#79c0ff">C:\\Users\\hr_user\\AppData\\Local\\Temp\\svchost32.exe</td></tr><tr><td class="text-muted" style="padding:3px 12px 3px 0">SHA-256</td><td style="font-family:monospace;color:#79c0ff;font-size:11px">a3f2d1c8e9b047f6a1234567890abcde (fictional)</td></tr><tr><td class="text-muted" style="padding:3px 12px 3px 0">Behavior</td><td>Registry persistence, keylog hook, network beacon every 60s</td></tr><tr><td class="text-muted" style="padding:3px 12px 3px 0">C2 Contact</td><td style="font-family:monospace;color:#f85149">malicious-update.example.com:443</td></tr></table></div></div>`,
+      question:'What is the correct initial response to this EDR alert?',
+      choices:[
+        { text:'A. Quarantine the file, isolate the host from the network immediately, preserve memory and disk image for forensics before any remediation', correct:true, feedback:'✅ Correct! The three priorities: quarantine/block the threat, network-isolate the endpoint to prevent C2 communication and lateral movement, and preserve evidence (memory dump, disk image) before remediation destroys forensic artifacts.' },
+        { text:'B. Delete the suspicious file and restart the computer to clear the infection', correct:false, feedback:'❌ Incorrect. Simply deleting the file may not remove persistence mechanisms (registry keys, scheduled tasks). Restarting without isolation first allows C2 communication to continue until shutdown. Evidence is also lost.' },
+        { text:'C. Ask the user to stop using the computer and wait for IT to schedule a reimaging next week', correct:false, feedback:'❌ Incorrect. A keylogger is actively capturing credentials. Every minute of delay means more sensitive data (passwords, financial info) transmitted to the C2 server. Immediate isolation is required.' },
+      ]
+    },
+    { title:'Step 2: Scope Assessment', type:'decision',
+      content:'The host is isolated. Memory dump captured. The keylogger was active for approximately 72 hours based on creation timestamp. The user handles HR records and employee PII.',
+      question:'What scope assessment actions are most critical?',
+      choices:[
+        { text:'A. Identify all credentials typed during the 72-hour window, reset all potentially captured passwords, assess PII exposure for breach notification requirements, check for lateral movement to other hosts', correct:true, feedback:'✅ Correct! Comprehensive scope assessment: credential inventory for mandatory resets, data exposure assessment (PII breach may trigger legal notification requirements), and lateral movement investigation to determine if the infection spread.' },
+        { text:'B. Only reset the HR user\'s password and reimage the computer', correct:false, feedback:'⚠ Insufficient. A 72-hour keylogger on an HR workstation may have captured domain admin credentials, other users\' passwords entered remotely, and sensitive PII. Each must be individually assessed and addressed.' },
+        { text:'C. Immediately notify all employees that their data may have been stolen', correct:false, feedback:'⚠ Premature. First complete the scope assessment to determine actual exposure. Premature notification without facts causes panic and may be legally inappropriate. Notify legal/compliance team first to determine notification requirements.' },
+      ]
+    },
+    { title:'Step 3: Eradication & Recovery', type:'decision',
+      content:'Scope confirmed: 3 credential sets captured, no lateral movement detected, PII access limited to HR records for 12 employees. Legal notified.',
+      question:'What is the correct eradication and recovery sequence?',
+      choices:[
+        { text:'A. Reimage the host, rotate all identified credentials, notify affected individuals per legal guidance, restore from clean backup, implement enhanced monitoring, conduct post-incident review', correct:true, feedback:'✅ Correct! Complete eradication requires reimaging (not just removing malware) to eliminate persistence. Credential rotation protects affected accounts. Legal-guided notification fulfills compliance obligations. Enhanced monitoring detects recurrence.' },
+        { text:'B. Run antivirus scan, quarantine detected files, restore the system to operation', correct:false, feedback:'⚠ Insufficient for confirmed keylogger infection. AV may not remove all persistence mechanisms. A full reimaging is the only way to guarantee eradication. Captured credentials must also be rotated.' },
+        { text:'C. Rebuild the entire network from scratch', correct:false, feedback:'⚠ Disproportionate response. The investigation confirmed no lateral movement. Targeted eradication of the affected host is appropriate. Full network rebuild would cause massive business disruption without additional security benefit.' },
+      ]
+    }
+  ]},
+  { id:'network', title:'🌐 Suspicious Network Activity', difficulty:'Hard', objectives:['Analyze anomalous network traffic patterns','Identify potential data exfiltration','Apply network-based containment measures'],
+    bg:'Your network monitoring system has flagged unusual outbound traffic. The DLP system triggered an alert at 01:33 AM on a contractor laptop.', steps:[
+    { title:'Step 1: Review the Network Alert', type:'review',
+      content:`<div class="card" style="background:#0a0f1a;border-color:#30363d"><div style="padding:14px"><div class="card-title">DLP / Network Alert Summary</div><table class="text-sm"><tr><td class="text-muted" style="padding:4px 8px 4px 0;width:140px">Source Host</td><td style="font-family:monospace;color:#79c0ff">CONTRACTOR-LT-03 (192.0.2.99)</td></tr><tr><td class="text-muted" style="padding:4px 8px 4px 0">Destination</td><td style="font-family:monospace;color:#f85149">203.0.113.200:443 (unclassified)</td></tr><tr><td class="text-muted" style="padding:4px 8px 4px 0">Protocol</td><td>HTTPS (TLS 1.2)</td></tr><tr><td class="text-muted" style="padding:4px 8px 4px 0">Data Volume</td><td style="color:#f0883e;font-weight:600">4.2 GB in 47 minutes</td></tr><tr><td class="text-muted" style="padding:4px 8px 4px 0">Time</td><td>01:33 AM – 02:20 AM (off-hours)</td></tr><tr><td class="text-muted" style="padding:4px 8px 4px 0">DLP Trigger</td><td>Large file transfer + off-hours + unclassified destination</td></tr></table></div></div>`,
+      question:'How would you classify this network activity?',
+      choices:[
+        { text:'A. High-confidence potential data exfiltration — off-hours, large volume, unclassified external destination from a contractor host warrants immediate investigation', correct:true, feedback:'✅ Correct! Multiple red flags: off-hours timing reduces legitimate business justification, 4.2GB is unusually large, unclassified destination lacks business context, and contractor endpoints have higher insider threat risk. Treat as potential exfiltration until proven otherwise.' },
+        { text:'B. Probably a legitimate backup process — contractors often sync large files at night to avoid bandwidth impact', correct:false, feedback:'⚠ Possibly, but this assumption is dangerous. Legitimate backup processes should be documented, target known corporate cloud destinations, and be authorized. This destination is unclassified. Investigate before dismissing.' },
+        { text:'C. This is a false positive — the DLP system is over-sensitive', correct:false, feedback:'❌ Incorrect. While DLP false positives occur, dismissing alerts without investigation is negligent. 4.2GB to an unknown external IP at 1 AM from a contractor device meets every criteria for a serious investigation.' },
+      ]
+    },
+    { title:'Step 2: Investigation Steps', type:'decision',
+      content:'The contractor\'s laptop is connected via corporate WiFi. The transfer is complete. No current active connection to the destination IP.',
+      question:'What investigation steps do you take first?',
+      choices:[
+        { text:'A. Preserve network logs and pcap if available, isolate the laptop, interview the contractor, inspect destination IP reputation, review what data was accessible to the contractor', correct:true, feedback:'✅ Correct! Preserve evidence first (logs, pcap), then isolate to prevent further transfers. Contractor interview may reveal legitimate explanation or confirm malicious intent. Data access review determines the severity of potential data loss.' },
+        { text:'B. Delete the network logs to prevent the contractor from being falsely accused', correct:false, feedback:'❌ Incorrect. Evidence tampering is illegal and unethical. Logs must be preserved. The investigation should determine facts, not protect assumptions. If the contractor is innocent, the logs will show it.' },
+        { text:'C. Immediately revoke all contractor access and publish findings publicly', correct:false, feedback:'⚠ Revoking access is appropriate, but publishing findings publicly before investigation is complete is premature, potentially defamatory, and may compromise the investigation.' },
+      ]
+    },
+    { title:'Step 3: Response Determination', type:'decision',
+      content:'Investigation reveals: the contractor cannot explain the transfer, the destination IP has no legitimate business relationship, and the transferred data appears to be a compressed archive of project source code.',
+      question:'What is the appropriate response?',
+      choices:[
+        { text:'A. Escalate to legal and HR, preserve all evidence with chain of custody, revoke contractor access, notify affected stakeholders, assess IP theft implications, engage law enforcement if warranted', correct:true, feedback:'✅ Correct! Confirmed insider threat/data exfiltration requires: legal/HR escalation, strict evidence chain of custody for potential prosecution, immediate access revocation, stakeholder notification, IP theft assessment, and potential law enforcement involvement.' },
+        { text:'B. Give the contractor a formal warning and increase monitoring', correct:false, feedback:'❌ Incorrect. A confirmed 4.2GB unauthorized exfiltration of source code is a serious incident requiring legal escalation, not just a warning. This may constitute IP theft or breach of contract.' },
+        { text:'C. Reimage the laptop and close the incident', correct:false, feedback:'❌ Incorrect. Reimaging before legal review destroys evidence. Data has already left the network — containment alone does not address the exfiltrated data, legal obligations, or contract breach.' },
+      ]
+    }
+  ]},
+  { id:'unauthorized', title:'🔑 Unauthorized Account Access', difficulty:'Medium', objectives:['Detect abnormal authentication patterns','Apply account compromise response procedures','Implement preventive identity controls'],
+    bg:'At 03:14 AM, a privileged admin account triggered an authentication alert. The account belongs to a senior sysadmin who is on vacation overseas.', steps:[
+    { title:'Step 1: Review Login Events', type:'review',
+      content:`<div class="card" style="background:#0a0f1a;border-color:#30363d"><div style="padding:14px"><div class="card-title">Authentication Log — admin.jsmith</div><table class="text-sm"><tr style="background:#0d2d0d"><td style="padding:4px 8px;color:#56d364;font-family:monospace;font-size:11px">2024-11-08 09:22:15</td><td style="color:#56d364">✅ SUCCESS</td><td style="font-family:monospace;color:#79c0ff">192.0.2.10</td><td class="text-muted">Corporate HQ — Windows 11</td></tr><tr style="background:#0d2d0d"><td style="padding:4px 8px;color:#56d364;font-family:monospace;font-size:11px">2024-11-10 14:45:02</td><td style="color:#56d364">✅ SUCCESS</td><td style="font-family:monospace;color:#79c0ff">192.0.2.10</td><td class="text-muted">Corporate HQ — Windows 11</td></tr><tr style="background:#3d0f0f"><td style="padding:4px 8px;color:#f85149;font-family:monospace;font-size:11px">2024-11-12 03:14:57</td><td style="color:#f85149">⚠ SUCCESS*</td><td style="font-family:monospace;color:#f85149">198.51.100.22</td><td class="text-muted" style="color:#f85149">Unknown location — Linux device — No MFA recorded</td></tr><tr style="background:#3d0f0f"><td style="padding:4px 8px;color:#f85149;font-family:monospace;font-size:11px">2024-11-12 03:15:12</td><td style="color:#f85149">LATERAL</td><td style="font-family:monospace;color:#f85149">198.51.100.22</td><td class="text-muted" style="color:#f85149">Accessed DC-SERVER-01, FILE-SERVER-03, BACKUP-01</td></tr></table></div></div>`,
+      question:'What does this login pattern indicate?',
+      choices:[
+        { text:'A. Compromised privileged account — unfamiliar IP, different device/OS, no MFA, 3 AM access time, and immediate lateral movement to critical infrastructure servers are all high-confidence compromise indicators', correct:true, feedback:'✅ Correct! Multiple impossible travel / anomaly indicators: IP geolocation change, device fingerprint change, bypassed MFA, off-hours timing, and rapid lateral movement to high-value targets (DC, file server, backup). This is a confirmed account compromise.' },
+        { text:'B. The sysadmin is working remotely from vacation — this is normal for privileged users', correct:false, feedback:'⚠ Possible but highly suspicious given the combination of: unknown IP, different OS, missing MFA, 3 AM timing, and immediate lateral movement. Even if remote work is permitted, the missing MFA bypass alone warrants immediate investigation.' },
+        { text:'C. The SIEM is generating false positives due to timezone differences', correct:false, feedback:'❌ Incorrect. SIEM anomaly alerts should always be investigated, not dismissed. The lateral movement to three critical servers is not a timezone issue — it is real system access that must be explained.' },
+      ]
+    },
+    { title:'Step 2: Immediate Containment', type:'decision',
+      content:'You cannot reach the sysadmin (vacation, different timezone). The attacker had 23 minutes of access before detection. Access to backup server is confirmed.',
+      question:'What is your immediate containment priority?',
+      choices:[
+        { text:'A. Disable the compromised account, revoke all active sessions and tokens, isolate all three accessed servers, preserve access logs and memory dumps, escalate to incident commander', correct:true, feedback:'✅ Correct! Time is critical — disable the account to stop further access, revoke ALL sessions (attacker may have planted persistence), isolate affected servers to prevent further lateral movement or data destruction (especially the backup server), and escalate for coordinated response.' },
+        { text:'B. Force a password reset and send an MFA push to the account holder', correct:false, feedback:'⚠ Password reset is necessary but insufficient alone. With 23 minutes of access to three servers including backups, you must also revoke all sessions, check for persistence mechanisms, and isolate affected systems.' },
+        { text:'C. Wait for the sysadmin to return from vacation to confirm if they initiated the access', correct:false, feedback:'❌ Incorrect. Waiting hours or days for account confirmation while an attacker potentially maintains access to your backup infrastructure is not acceptable. Apply the principle of least privilege — disable first, investigate second.' },
+      ]
+    },
+    { title:'Step 3: Recovery and Hardening', type:'decision',
+      content:'Forensics confirms the account was compromised via credential stuffing. No ransomware deployed. Backup integrity verified. Sysadmin credentials and all service accounts on affected servers must be rotated.',
+      question:'What identity hardening measures prevent recurrence?',
+      choices:[
+        { text:'A. Enforce MFA on all privileged accounts, implement Privileged Access Management (PAM), enable just-in-time admin access, configure impossible travel alerts, enforce device compliance for admin login', correct:true, feedback:'✅ Excellent! Defense-in-depth for privileged accounts: MFA makes stolen credentials useless, PAM vaults credentials and records sessions, JIT access minimizes privilege exposure, impossible travel alerts catch this pattern automatically, and device compliance ensures only managed endpoints can authenticate.' },
+        { text:'B. Increase password complexity requirements', correct:false, feedback:'⚠ Necessary but insufficient. The compromise came from credential stuffing, not weak passwords. MFA would have prevented this entirely regardless of password complexity.' },
+        { text:'C. Reduce the number of privileged accounts', correct:false, feedback:'⚠ Good practice but not a direct fix for this attack pattern. The primary prevention for credential stuffing against admin accounts is MFA — no credential is safe from stuffing attacks without a second factor.' },
+      ]
+    }
+  ]}
+];
+
+let simState = { scenario:null, step:0, score:0, maxScore:0, choices:[], started:null };
+
+function renderSimulatorHome() {
+  document.getElementById('sim-home').classList.remove('hidden');
+  document.getElementById('sim-active').classList.add('hidden');
+  document.getElementById('scenario-cards').innerHTML = SCENARIOS.map(s=>`
+    <div class="scenario-card" onclick="startScenario('${s.id}')">
+      <div class="scenario-title">${s.title}</div>
+      <div class="scenario-desc">${s.bg.substring(0,100)}...</div>
+      <div class="flex gap-8">
+        <span class="diff-badge diff-${s.difficulty==='Easy'?'easy':s.difficulty==='Hard'?'hard':'med'}">${s.difficulty}</span>
+        <span class="text-muted text-sm">${s.steps.length} decision points</span>
+      </div>
+      <div class="mt-8 text-sm text-muted">Objectives: ${s.objectives.slice(0,2).join(', ')}</div>
+    </div>`).join('');
+}
+
+function startScenario(id) {
+  const s = SCENARIOS.find(x=>x.id===id);
+  simState = { scenario:s, step:0, score:0, maxScore:s.steps.length, choices:[], started:new Date().toISOString() };
+  document.getElementById('sim-home').classList.add('hidden');
+  document.getElementById('sim-active').classList.remove('hidden');
+  renderSimStep();
+}
+
+function renderSimStep() {
+  const s = simState.scenario;
+  const step = s.steps[simState.step];
+  const pct = Math.round((simState.step/simState.maxScore)*100);
+  document.getElementById('sim-content').innerHTML = `
+    <div class="flex flex-between items-center mb-16">
+      <button class="btn btn-ghost btn-sm" onclick="renderSimulatorHome()">← Exit Scenario</button>
+      <div class="text-sm text-muted">${s.title} — Step ${simState.step+1} of ${simState.maxScore}</div>
+      <div class="text-sm">Score: <strong class="text-info">${simState.score}/${simState.step}</strong></div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div class="card mt-16">
+      <div class="flex gap-8 mb-16">${s.objectives.map(o=>`<span class="badge badge-new text-sm">${o}</span>`).join('')}</div>
+      <div class="card-title">${step.title}</div>
+      <div class="alert alert-info mb-16"><strong>Scenario Background:</strong> ${s.bg}</div>
+      ${step.content}
+      <div style="margin-top:20px"><strong style="color:#e6edf3">${step.question}</strong></div>
+      <div style="margin-top:12px" id="choices-wrap">${step.choices.map((c,i)=>`<button class="choice-btn" onclick="makeChoice(${i})">${c.text}</button>`).join('')}</div>
+      <div id="feedback-wrap"></div>
+    </div>`;
+}
+
+function makeChoice(idx) {
+  const step = simState.scenario.steps[simState.step];
+  const choice = step.choices[idx];
+  const btns = document.querySelectorAll('.choice-btn');
+  btns.forEach((b,i) => {
+    b.disabled = true;
+    if(i===idx) b.classList.add(choice.correct?'correct':choice.feedback.startsWith('⚠')?'neutral':'wrong');
+  });
+  if(choice.correct) simState.score++;
+  simState.choices.push({step:simState.step,chosen:idx,correct:choice.correct});
+  document.getElementById('feedback-wrap').innerHTML = `<div class="feedback-box ${choice.correct?'alert-success':choice.feedback.startsWith('⚠')?'alert-warn':'alert-danger'}">${choice.feedback}<br/><br/><button class="btn btn-primary btn-sm mt-8" onclick="nextStep()">Continue →</button></div>`;
+}
+
+function nextStep() {
+  simState.step++;
+  if(simState.step >= simState.scenario.steps.length) { showSimResults(); return; }
+  renderSimStep();
+}
+
+function showSimResults() {
+  const pct = Math.round((simState.score/simState.maxScore)*100);
+  const grade = pct>=80?'Excellent 🏆':pct>=60?'Good 👍':pct>=40?'Needs Improvement ⚠':'Review Required ❌';
+  const color = pct>=80?'#56d364':pct>=60?'#58a6ff':pct>=40?'#e3b341':'#f85149';
+  db.simScores.push({ scenario:simState.scenario.id, score:simState.score, max:simState.maxScore, pct, ts:new Date().toISOString() });
+  addAudit('Simulation Completed', '', `${simState.scenario.title} — Score: ${simState.score}/${simState.maxScore} (${pct}%)`);
+  saveDB();
+  document.getElementById('sim-content').innerHTML = `
+    <div class="card" style="text-align:center;padding:40px">
+      <div style="font-size:48px;margin-bottom:16px">${pct>=80?'🏆':pct>=60?'✅':'📚'}</div>
+      <div style="font-size:24px;font-weight:700;color:${color};margin-bottom:8px">${grade}</div>
+      <div style="font-size:40px;font-weight:700;color:#e6edf3;margin:16px 0">${simState.score} / ${simState.maxScore}</div>
+      <div class="score-bar" style="max-width:300px;margin:0 auto 24px"><div class="score-fill" style="width:${pct}%;background:${color}"></div></div>
+      <p class="text-muted" style="margin-bottom:24px">Scenario: ${simState.scenario.title}</p>
+      <div class="card" style="text-align:left;max-width:500px;margin:0 auto 24px">
+        <div class="card-title">📋 Recommendations</div>
+        ${simState.choices.filter(c=>!c.correct).length===0?'<p class="text-sm text-success">Perfect score! All decisions were optimal.</p>':'<p class="text-sm">Review the incorrect decisions above and study the corresponding playbooks to improve your response skills.</p>'}
+        <ul class="text-sm" style="padding-left:16px;margin-top:8px;line-height:2;color:#c9d1d9">
+          <li>Review the <a onclick="showPage(\'playbooks\')" style="cursor:pointer">Response Playbooks</a> for this scenario type</li>
+          <li>Practice the other simulation scenarios</li>
+          <li>Study the NIST SP 800-61 IR lifecycle</li>
+        </ul>
+      </div>
+      <div class="flex gap-8" style="justify-content:center">
+        <button class="btn btn-primary" onclick="startScenario('${simState.scenario.id}')">🔄 Retry</button>
+        <button class="btn btn-ghost" onclick="renderSimulatorHome()">← All Scenarios</button>
+      </div>
+    </div>`;
+}
+
+// ==================== INVESTIGATION ====================
+function renderInvestigation() {
+  const sel = document.getElementById('inv-incident-select');
+  sel.innerHTML = db.incidents.filter(i=>i.status!=='Closed').map(i=>`<option value="${i.id}">${i.id} — ${i.title.substring(0,45)}</option>`).join('');
+  loadInvestigation();
+}
+function loadInvestigation() {
+  const id = document.getElementById('inv-incident-select').value;
+  const inc = db.incidents.find(i=>i.id===id);
+  if(!inc) { document.getElementById('inv-content').innerHTML='<p class="text-muted">No open incidents available.</p>'; return; }
+  const notes = db.notes[id]||[];
+  const evidence = db.evidence[id]||[];
+  document.getElementById('inv-content').innerHTML = `
+    <div class="grid g2 mb-16">
+      <div class="card">
+        <div class="card-title">🔍 Incident Overview</div>
+        <div class="flex gap-8 mb-16">${sevBadge(inc.severity)} ${statusBadge(inc.status)}</div>
+        <div style="font-size:16px;font-weight:600;color:#e6edf3;margin-bottom:8px">${inc.title}</div>
+        <p class="text-sm text-muted" style="margin-bottom:12px">${inc.description}</p>
+        <table class="text-sm"><tr><td class="text-muted" style="padding:3px 12px 3px 0">Host</td><td style="font-family:monospace;color:#79c0ff">${inc.host||'N/A'}</td></tr><tr><td class="text-muted">Source IP</td><td style="font-family:monospace;color:#79c0ff">${inc.sourceIp||'N/A'}</td></tr><tr><td class="text-muted">Analyst</td><td>${inc.analyst}</td></tr></table>
+      </div>
+      <div class="card">
+        <div class="card-title">📅 Event Timeline</div>
+        <div class="timeline">${(inc.timeline||[]).map(t=>`<div class="tl-item tl-${t.type}"><div class="tl-time">${ts(t.ts)}</div><div class="tl-text">${t.text}</div></div>`).join('')||'<p class="text-muted text-sm">No events.</p>'}</div>
+      </div>
+    </div>
+    <div class="grid g2 mb-16">
+      <div class="card">
+        <div class="flex flex-between items-center mb-16"><div class="card-title" style="margin:0">🗒 Analyst Notes (${notes.length})</div><button class="btn btn-ghost btn-sm" onclick="editingId='${id}';addNotePrompt();loadInvestigation()">＋ Add</button></div>
+        ${notes.length===0?'<p class="text-muted text-sm">No notes yet. Begin documenting your investigation findings.</p>':''}
+        ${notes.map((n,i)=>`<div style="border-bottom:1px solid #21262d;padding:10px 0"><div class="text-muted text-sm">${ts(n.ts)} — ${n.analyst}</div><p class="text-sm mt-8">${n.text}</p></div>`).join('')}
+      </div>
+      <div class="card">
+        <div class="flex flex-between items-center mb-16"><div class="card-title" style="margin:0">🔎 Evidence Register (${evidence.length})</div><button class="btn btn-ghost btn-sm" onclick="editingId='${id}';addEvidencePrompt();loadInvestigation()">＋ Add</button></div>
+        ${evidence.length===0?'<p class="text-muted text-sm">No evidence recorded. Document all artifacts and artifacts reviewed.</p>':''}
+        ${evidence.map(e=>`<div style="border-bottom:1px solid #21262d;padding:8px 0"><div class="flex flex-between"><span class="text-sm">${e.desc}</span><span class="badge ${e.cls==='Confirmed Relevant'?'badge-rec':e.cls==='Not Relevant'?'badge-closed':'badge-ack'}">${e.cls}</span></div></div>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">💡 Recommended Next Steps</div>
+      <div class="grid g3">${['Preserve all logs and artifacts','Identify all affected systems','Check for lateral movement','Review related IOCs in Threat Intel','Consult the appropriate playbook','Coordinate with legal/compliance if data is involved'].map(s=>`<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;font-size:13px"><span style="color:#58a6ff">→</span>${s}</div>`).join('')}</div>
+    </div>`;
+}
+
+// ==================== PLAYBOOKS ====================
+const PLAYBOOKS = {
+  phishing: { title:'📧 Phishing Response Playbook', steps:[
+    { title:'1. Preparation', items:['Ensure email security gateway is configured with SPF/DKIM/DMARC','Maintain an updated phishing report mailbox (phishing@company.internal)','Train users on phishing identification and reporting','Configure SIEM rules for bulk phishing detection'] },
+    { title:'2. Detection & Identification', items:['Review reported email headers and sender reputation','Identify IOCs: sender domain, embedded URLs, attachments','Check if the email was delivered to multiple recipients','Determine click-through count via URL filtering logs'] },
+    { title:'3. Initial Triage', items:['Classify severity based on payload type and click count','Identify users who clicked or replied','Assess whether credentials were entered on fake portals','Preserve original email with full headers as evidence'] },
+    { title:'4. Containment', items:['Block phishing domain/URL at proxy and email gateway','Recall unread messages where email platform supports it','Force password reset for users who entered credentials','Revoke active sessions for potentially compromised accounts'] },
+    { title:'5. Eradication', items:['Remove malicious emails from all mailboxes','Verify email gateway rules prevent similar delivery','Remove any malware payloads from affected endpoints','Confirm no persistence mechanisms installed'] },
+    { title:'6. Recovery', items:['Restore normal email operations','Verify mail flow with test messages','Confirm user accounts are secured with new credentials and MFA','Return affected systems to normal operation'] },
+    { title:'7. Post-Incident Review', items:['Document full timeline of the phishing campaign','Calculate number of recipients, click-throughs, and credential entries','Assign mandatory phishing awareness training to affected users','Submit IOCs to threat intelligence platform','Review and improve email filtering rules'] },
+  ]},
+  malware: { title:'🦠 Malware Infection Playbook', steps:[
+    { title:'1. Preparation', items:['Ensure EDR is deployed on all endpoints','Maintain updated antivirus signatures','Establish clean backup verification procedures','Define isolation procedures for affected endpoints'] },
+    { title:'2. Detection & Identification', items:['Review EDR/AV alert details: file path, hash, behavior','Identify affected host and user account','Check file hash against threat intelligence','Determine initial infection vector if possible'] },
+    { title:'3. Initial Triage', items:['Assess malware type and potential impact','Determine if C2 communication is active','Identify data at risk on the affected system','Check for signs of lateral movement to other hosts'] },
+    { title:'4. Containment', items:['Isolate affected endpoint from the network immediately','Preserve memory dump and disk image for forensics','Quarantine or block the malicious file','Block C2 domain/IP at firewall and DNS'] },
+    { title:'5. Eradication', items:['Reimage the affected endpoint (do not patch over)','Rotate all credentials accessible from the infected host','Scan all connected systems for the same malware family','Remove any persistence mechanisms (registry, scheduled tasks)'] },
+    { title:'6. Recovery', items:['Restore system from clean baseline image','Reinstall required applications','Verify system integrity before reconnecting to network','Monitor for recurrence for 30 days'] },
+    { title:'7. Post-Incident Review', items:['Document root cause and infection vector','Assess data exposure and breach notification requirements','Submit malware sample and IOCs to threat intelligence','Review endpoint security coverage gaps','Update detection rules to identify this malware family'] },
+  ]},
+  bruteforce: { title:'🔐 Brute-Force Login Playbook', steps:[
+    { title:'1. Preparation', items:['Configure account lockout policies (max 5-10 failures)','Enable MFA on all external-facing authentication systems','Configure SIEM alerts for high-frequency auth failures','Implement IP-based rate limiting on authentication endpoints'] },
+    { title:'2. Detection & Identification', items:['Review SIEM alert for authentication failure volume','Identify source IP(s) and targeted usernames','Determine authentication service targeted (VPN, RDP, email)','Check if any accounts were successfully accessed'] },
+    { title:'3. Initial Triage', items:['Assess whether any accounts were compromised','Identify all locked-out accounts','Determine if this is targeted (known usernames) or spray attack','Check for concurrent attacks from multiple IPs'] },
+    { title:'4. Containment', items:['Block attacking IP(s) at firewall','Enable temporary geographic IP restrictions if justified','Unlock affected legitimate accounts with notification','Force password reset for any accounts with successful login from attacker IP'] },
+    { title:'5. Eradication', items:['Review and strengthen account lockout policy','Implement CAPTCHA on authentication failures','Enable MFA if not already active','Review password policy and enforce stronger credentials'] },
+    { title:'6. Recovery', items:['Restore normal authentication service','Confirm legitimate users can authenticate','Verify MFA is enforced and functional','Remove temporary IP blocks after risk assessment'] },
+    { title:'7. Post-Incident Review', items:['Document attack timeline and impact','Assess credential exposure based on targeted usernames','Review authentication hardening roadmap','Update SIEM detection thresholds if needed'] },
+  ]},
+  compromised: { title:'🔑 Compromised Account Playbook', steps:[
+    { title:'1. Preparation', items:['Implement MFA on all accounts, especially privileged','Establish baseline behavioral analytics for user accounts','Configure impossible travel / anomaly alerts in SIEM','Maintain a privileged account inventory'] },
+    { title:'2. Detection & Identification', items:['Review anomalous login alert details (IP, device, time)','Verify account owner did not initiate the session (out-of-band)','Identify all actions taken during the suspicious session','Determine scope of data and systems accessed'] },
+    { title:'3. Initial Triage', items:['Classify as confirmed compromise or false positive','Determine account privilege level (user vs. admin)','Identify lateral movement to other systems','Check for persistence mechanisms (new accounts, SSH keys, forwarding rules)'] },
+    { title:'4. Containment', items:['Disable the compromised account immediately','Revoke all active sessions and OAuth tokens','Isolate systems that received lateral movement','Preserve all authentication and access logs'] },
+    { title:'5. Eradication', items:['Remove attacker persistence mechanisms','Reset all credentials associated with the account','Rotate service account passwords on accessed systems','Review and remove any attacker-created accounts or backdoors'] },
+    { title:'6. Recovery', items:['Re-enable account with new credentials after investigation','Enforce MFA enrollment before first login','Monitor account closely for 30 days post-recovery','Verify system integrity on all laterally accessed hosts'] },
+    { title:'7. Post-Incident Review', items:['Determine root cause of credential compromise','Assess data exfiltration risk from accessed systems','Review privileged access management controls','Implement just-in-time privileged access for admin accounts'] },
+  ]},
+  network: { title:'🌐 Suspicious Network Activity Playbook', steps:[
+    { title:'1. Preparation', items:['Deploy network monitoring (IDS/IPS, NetFlow, DLP)','Establish baseline network behavior for anomaly detection','Maintain network segmentation and least-privilege firewall rules','Define sensitive data flows and monitor for deviations'] },
+    { title:'2. Detection & Identification', items:['Review network alert details: source, destination, volume, protocol','Check destination IP/domain reputation','Identify the source host and user account','Correlate with endpoint and authentication logs'] },
+    { title:'3. Initial Triage', items:['Assess whether traffic is legitimate business activity','Determine what data may have been transmitted','Identify if transfer is ongoing or complete','Check for encryption that may hide exfiltrated content'] },
+    { title:'4. Containment', items:['Block destination IP/domain at firewall if confirmed malicious','Isolate source host if active exfiltration is ongoing','Preserve network traffic captures (pcap) as evidence','Prevent further access to sensitive data from the source host'] },
+    { title:'5. Eradication', items:['Remove malware or tools used for exfiltration if present','Revoke network access for compromised credentials','Review and tighten data egress firewall rules','Implement DLP policies to block sensitive data types'] },
+    { title:'6. Recovery', items:['Restore normal network operations','Verify DLP policies are active and tested','Reconnect isolated host after verification','Monitor network traffic patterns for 30 days'] },
+    { title:'7. Post-Incident Review', items:['Assess volume and sensitivity of exfiltrated data','Determine breach notification requirements with legal team','Review network segmentation and east-west traffic controls','Improve DLP content inspection policies'] },
+  ]}
+};
+
+function renderPlaybook() {
+  const key = document.getElementById('pb-select').value;
+  const pb = PLAYBOOKS[key];
+  if(!pb.progress) pb.progress = {};
+  const totalItems = pb.steps.reduce((a,s)=>a+s.items.length,0);
+  const doneItems = Object.values(pb.progress).filter(Boolean).length;
+  const pct = totalItems ? Math.round((doneItems/totalItems)*100) : 0;
+  document.getElementById('pb-content').innerHTML = `
+    <div class="card mb-16">
+      <div style="font-size:18px;font-weight:700;color:#e6edf3;margin-bottom:12px">${pb.title}</div>
+      <div class="flex flex-between items-center">
+        <div class="text-sm text-muted">${doneItems} of ${totalItems} checklist items completed</div>
+        <div class="text-sm text-info">${pct}%</div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>
+    ${pb.steps.map((step,si)=>{
+      const stepDone = step.items.filter((_,ii)=>pb.progress[`${si}_${ii}`]).length;
+      return `<div class="pb-step">
+        <div class="pb-step-header" onclick="togglePbStep(${si})">
+          <span style="color:${stepDone===step.items.length?'#56d364':'#8b949e'}">${stepDone===step.items.length?'✅':'○'}</span>
+          <strong style="color:#e6edf3;flex:1">${step.title}</strong>
+          <span class="text-muted text-sm">${stepDone}/${step.items.length}</span>
+        </div>
+        <div class="pb-step-body" id="pb-body-${si}">
+          ${step.items.map((item,ii)=>`<div class="checklist-item ${pb.progress[`${si}_${ii}`]?'done':''}">
+            <input type="checkbox" ${pb.progress[`${si}_${ii}`]?'checked':''} onchange="togglePbItem('${key}',${si},${ii},this.checked)"/>
+            <span>${item}</span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+function togglePbStep(si) {
+  const body = document.getElementById('pb-body-'+si);
+  body.classList.toggle('open');
+}
+function togglePbItem(key, si, ii, checked) {
+  if(!PLAYBOOKS[key].progress) PLAYBOOKS[key].progress={};
+  PLAYBOOKS[key].progress[`${si}_${ii}`] = checked;
+  if(!db.playbookProgress[key]) db.playbookProgress[key]={};
+  db.playbookProgress[key][`${si}_${ii}`] = checked;
+  saveDB();
+  const pb = PLAYBOOKS[key];
+  const totalItems = pb.steps.reduce((a,s)=>a+s.items.length,0);
+  const doneItems = Object.values(pb.progress).filter(Boolean).length;
+  const pct = Math.round((doneItems/totalItems)*100);
+  document.querySelector('#pb-content .progress-fill').style.width = pct+'%';
+  document.querySelector('#pb-content .text-info').textContent = pct+'%';
+  document.querySelector('#pb-content .text-muted').textContent = `${doneItems} of ${totalItems} checklist items completed`;
+}
+
+// ==================== IOC TABLE ====================
+function renderIOCTable() {
+  const search = document.getElementById('ioc-search').value.toLowerCase();
+  const typeFilter = document.getElementById('ioc-type-filter').value;
+  let iocs = (db.ioc||SEED_IOC).filter(i=>{
+    if(search && !i.indicator.toLowerCase().includes(search) && !i.notes.toLowerCase().includes(search)) return false;
+    if(typeFilter && i.type!==typeFilter) return false;
+    return true;
+  });
+  document.querySelector('#ioc-table tbody').innerHTML = iocs.map(i=>`<tr>
+    <td class="ioc-row">${i.indicator}</td>
+    <td><span class="badge badge-new">${i.type}</span></td>
+    <td><span class="badge ${i.confidence==='High'?'badge-crit':i.confidence==='Medium'?'badge-med':'badge-low'}">${i.confidence}</span></td>
+    <td style="color:#58a6ff;font-family:monospace;font-size:12px;cursor:pointer" onclick="openDetail('${i.incident}')">${i.incident}</td>
+    <td class="text-muted text-sm">${i.firstSeen}</td>
+    <td class="text-muted text-sm">${i.lastSeen}</td>
+    <td class="text-muted text-sm">${i.notes}</td>
+  </tr>`).join('');
+}
+
+// ==================== REPORTS ====================
+function setDefaultDates() {
+  const to = new Date(); const from = new Date(); from.setDate(from.getDate()-30);
+  document.getElementById('rpt-from').value = from.toISOString().split('T')[0];
+  document.getElementById('rpt-to').value = to.toISOString().split('T')[0];
+}
+function renderReports() {
+  const from = new Date(document.getElementById('rpt-from').value||'2000-01-01');
+  const to = new Date(document.getElementById('rpt-to').value||'2099-01-01'); to.setHours(23,59,59);
+  const incs = db.incidents.filter(i=>new Date(i.detected)>=from && new Date(i.detected)<=to);
+
+  let mttaMs=[], mttrMs=[];
+  incs.forEach(i=>{
+    const det=new Date(i.detected).getTime(), upd=new Date(i.updated).getTime();
+    if(i.status!=='New') mttaMs.push(upd-det);
+    if(i.status==='Closed') mttrMs.push(upd-det);
+  });
+  const mtta = mttaMs.length ? fmtDuration(mttaMs.reduce((a,b)=>a+b,0)/mttaMs.length) : 'Not enough data';
+  const mttr = mttrMs.length ? fmtDuration(mttrMs.reduce((a,b)=>a+b,0)/mttrMs.length) : 'Not enough data';
+  const closureRate = incs.length ? Math.round((incs.filter(i=>i.status==='Closed').length/incs.length)*100) : 0;
+
+  const sevCounts={Critical:0,High:0,Medium:0,Low:0};
+  const catCounts={}; const analystCounts={};
+  incs.forEach(i=>{
+    sevCounts[i.severity]=(sevCounts[i.severity]||0)+1;
+    catCounts[i.category]=(catCounts[i.category]||0)+1;
+    analystCounts[i.analyst]=(analystCounts[i.analyst]||0)+1;
+  });
+  const maxA=Math.max(...Object.values(analystCounts)||[1]);
+  const maxC2=Math.max(...Object.values(catCounts)||[1]);
+  const simAvg = db.simScores.length ? Math.round(db.simScores.reduce((a,b)=>a+b.pct,0)/db.simScores.length) : null;
+  const pbKeys = Object.keys(db.playbookProgress||{});
+  const pbCompletion = pbKeys.map(k=>{
+    const pb=PLAYBOOKS[k]; if(!pb) return null;
+    const total=pb.steps.reduce((a,s)=>a+s.items.length,0);
+    const done=Object.values(db.playbookProgress[k]).filter(Boolean).length;
+    return {name:pb.title.replace(' Playbook',''),pct:Math.round((done/total)*100)};
+  }).filter(Boolean);
+
+  document.getElementById('reports-content').innerHTML = `
+    <div class="grid g4 mb-16">
+      <div class="card"><div class="card-title">Total Incidents</div><div class="stat-val">${incs.length}</div></div>
+      <div class="card"><div class="card-title">Closure Rate</div><div class="stat-val text-success">${closureRate}%</div></div>
+      <div class="card"><div class="card-title">Avg MTTA</div><div class="stat-val text-info">${mtta}</div></div>
+      <div class="card"><div class="card-title">Avg MTTR</div><div class="stat-val text-success">${mttr}</div></div>
+    </div>
+    <div class="grid g2 mb-16">
+      <div class="card">
+        <div class="card-title">Severity Distribution</div>
+        <div class="chart-wrap"><div class="bar-chart">${[['Critical','#f85149'],['High','#f0883e'],['Medium','#e3b341'],['Low','#56d364']].map(([s,c])=>`<div class="bar" style="height:${sevCounts[s]?((sevCounts[s]/Math.max(...Object.values(sevCounts)))*100):0}%;background:${c}"><span class="bar-val">${sevCounts[s]||0}</span><span class="bar-label">${s}</span></div>`).join('')}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Incidents by Category</div>
+        <div class="chart-wrap"><div class="bar-chart">${Object.keys(catCounts).map((c,i)=>`<div class="bar" style="height:${(catCounts[c]/maxC2)*100}%;background:${['#1f6feb','#58a6ff','#f0883e','#f85149','#e3b341','#56d364','#a371f7'][i%7]}"><span class="bar-val">${catCounts[c]}</span><span class="bar-label">${c.split(' ')[0]}</span></div>`).join('')}</div></div>
+      </div>
+    </div>
+    <div class="grid g2 mb-16">
+      <div class="card">
+        <div class="card-title">Analyst Workload</div>
+        <div class="chart-wrap"><div class="bar-chart">${Object.keys(analystCounts).map((a,i)=>`<div class="bar" style="height:${(analystCounts[a]/maxA)*100}%;background:#1f6feb"><span class="bar-val">${analystCounts[a]}</span><span class="bar-label">${a.split(' ')[0]}</span></div>`).join('')}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Simulation Performance</div>
+        ${simAvg!==null?`<div class="stat-val text-info">${simAvg}%</div><div class="stat-sub">Average score across ${db.simScores.length} sessions</div><div class="score-bar mt-8"><div class="score-fill" style="width:${simAvg}%"></div></div>
+        <table class="text-sm mt-16"><thead><tr><th>Scenario</th><th>Score</th><th>Date</th></tr></thead><tbody>${db.simScores.slice(-5).reverse().map(s=>`<tr><td>${s.scenario}</td><td style="color:${s.pct>=80?'#56d364':s.pct>=60?'#58a6ff':'#f0883e'}">${s.score}/${s.max} (${s.pct}%)</td><td class="text-muted">${dateStr(s.ts)}</td></tr>`).join('')}</tbody></table>`:'<p class="text-muted text-sm">No simulation sessions recorded yet. <a onclick="showPage(\'simulator\')" style="cursor:pointer">Start a simulation →</a></p>'}
+      </div>
+    </div>
+    ${pbCompletion.length?`<div class="card"><div class="card-title">Playbook Completion</div>${pbCompletion.map(p=>`<div class="mb-16"><div class="flex flex-between text-sm mb-16"><span>${p.name}</span><span class="text-info">${p.pct}%</span></div><div class="progress-bar"><div class="progress-fill" style="width:${p.pct}%"></div></div></div>`).join('')}</div>`:''}`;
+}
+function exportReportCSV() {
+  const headers = ['ID','Title','Category','Severity','Status','Detected','Analyst'];
+  const rows = db.incidents.map(i=>[i.id,`"${i.title}"`,i.category,i.severity,i.status,i.detected,i.analyst]);
+  downloadFile('cybersentinel_report.csv','text/csv',[headers.join(','),...rows.map(r=>r.join(','))].join('\n'));
+  addAudit('Report Exported','','Analytics report CSV exported');
+}
+
+// ==================== AUDIT ====================
+function renderAuditTable() {
+  document.querySelector('#audit-table tbody').innerHTML = db.audit.slice(0,100).map(a=>`<tr>
+    <td class="text-muted text-sm" style="white-space:nowrap">${ts(a.ts)}</td>
+    <td><span class="badge badge-new">${a.action}</span></td>
+    <td style="color:#58a6ff;font-family:monospace;font-size:12px">${a.incId||'—'}</td>
+    <td class="text-sm">${a.detail}</td>
+    <td class="text-muted text-sm">${a.analyst||'System'}</td>
+  </tr>`).join('');
+}
+function exportAuditCSV() {
+  const headers = ['Timestamp','Action','IncidentID','Details','Analyst'];
+  const rows = db.audit.map(a=>[`"${a.ts}"`,`"${a.action}"`,a.incId||'',`"${a.detail}"`,a.analyst||'']);
+  downloadFile('audit_log.csv','text/csv',[headers.join(','),...rows.map(r=>r.join(','))].join('\n'));
+}
+
+// ==================== SETTINGS ====================
+function saveSettings() {
+  db.settings.analyst = document.getElementById('analyst-name').value;
+  db.settings.refresh = parseInt(document.getElementById('refresh-interval').value);
+  saveDB(); alert('✅ Settings saved.');
+}
+function resetSimulations() {
+  if(!confirm('Reset all simulation scores? This cannot be undone.')) return;
+  db.simScores=[]; saveDB(); alert('Simulation scores reset.');
+}
+function resetAllData() {
+  if(!confirm('⚠ WARNING: This will delete ALL incidents, notes, and audit logs. Type RESET to confirm.')) return;
+  const c = prompt('Type RESET to confirm:');
+  if(c!=='RESET') { alert('Reset cancelled.'); return; }
+  localStorage.removeItem(DB_KEY); location.reload();
+}
+
+// ==================== INIT ====================
+initData();
+// Restore playbook progress from DB
+Object.keys(db.playbookProgress||{}).forEach(key=>{
+  if(PLAYBOOKS[key]) PLAYBOOKS[key].progress = db.playbookProgress[key];
+});
+showPage('dashboard');
+</script>
+</body>
+</html>
